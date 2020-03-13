@@ -4,8 +4,11 @@
 This notebook shows the evolution of COVID-19 virus all over the world.
 (coronavirus-visualization-modeling.ipynb)
 
-It also focuses on South Korea areas.
-Animated Maps are Available for South Korea & World.
+It also focuses on South Korea  and France areas.
+
+Animated Maps are Available by Regions for  South Korea, France Regions, USA, China.
+Also, more globaly other contries of the World.
+ 
 
 Published version is available on kaggle : https://www.kaggle.com/jeugregg/coronavirus-visualization-modeling
 
