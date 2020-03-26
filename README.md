@@ -11,7 +11,7 @@ It also focuses on South Korea and France areas.
 Animated Maps are Available by Regions for  South Korea, France Regions, USA, China.
 Also, more globaly other contries of the World.
  
-Also, this notebook scrap data from French and Korean Health official websites.
+Also, this notebook scraps data from French and Korean Health official websites.
 If you discover the code, you can see how.
 Korean & French data are updated daily.
 
