@@ -4,11 +4,16 @@
 This notebook shows the evolution of COVID-19 virus all over the world.
 (coronavirus-visualization-modeling.ipynb)
 
-It also focuses on South Korea  and France areas.
+I added a very simple model to estimate actual cases number, and a very close-time forecast
+
+It also focuses on South Korea and France areas.
 
 Animated Maps are Available by Regions for  South Korea, France Regions, USA, China.
 Also, more globaly other contries of the World.
  
+Also, this notebook scrap data from French and Korean Health official websites.
+If you discover the code, you can see how.
+Korean & French data are updated daily.
 
 Published version is available on kaggle : https://www.kaggle.com/jeugregg/coronavirus-visualization-modeling
 
