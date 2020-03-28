@@ -8,8 +8,8 @@ I added a very simple model to estimate actual cases number, and a very close-ti
 
 It also focuses on South Korea and France areas.
 
-Animated Maps are Available by Regions for  South Korea, France Regions, USA, China.
-Also, more globaly other contries of the World.
+Animated Maps are Available at Region-level for South Korea, France, USA, China.
+Also, more globally, at country-level for all other countries in the World.
  
 Also, this notebook scraps data from French and Korean Health official websites.
 If you discover the code, you can see how.
