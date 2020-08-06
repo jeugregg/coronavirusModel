@@ -48,6 +48,7 @@ train_split = 50
 past_history = 10 # days used to predict next values in future
 future_target = 3 # predict 3 days later
 STEP = 1
+NB_DAY_PLOT = 60
 
 # HELPER FUNCTIONS
 # FOR DATES
@@ -444,11 +445,66 @@ def update_pred_pos(df_feat_fr):
 
     return df_plot_pred
 
+def update_pred_pos_all(df_feat_fr):
+    '''
+    Update prediction data positive cases France for all days
+    '''
+    # load model
+    multi_step_model = tf.keras.models.load_model(PATH_MDL_MULTI_STEP)
+
+    # prepare features
+    features = df_feat_fr.copy().filter(items=['T_min', 'T_max', 'H_min',
+                                            'H_max', 'pos', 'test', 'day_num'])
+    # prepare dataset 
+    dataset = features.values
+    data_mean = dataset[:train_split].mean(axis=0)
+    data_std = dataset[:train_split].std(axis=0)
+    dataset = (dataset-data_mean)/data_std
+
+    list_x = []
+    K_days = 0
+    # prepare data : very last days
+    nb_max = int((NB_DAY_PLOT)/future_target)
+    for I in range(nb_max, 0, -1):
+        I_start = I * future_target - past_history
+        if I_start < 0:
+            break
+        I_end = I * future_target
+        list_x.append(np.array([dataset[I_start:I_end, :]]))
+        K_days += future_target
+
+    str_date_pred_1 = df_feat_fr.date.max()
+    str_date_pred_0 = add_days(str_date_pred_1, -1*K_days)
+    list_dates_pred = generate_list_dates(str_date_pred_0, str_date_pred_1)
+
+    # model prediction
+    for I, x_multi in enumerate(list_x):
+        if I:
+            y_multi_pred = np.concatenate([y_multi_pred, 
+                                        multi_step_model.predict(x_multi)],
+                                axis=1)
+        else:
+            y_multi_pred = multi_step_model.predict(x_multi)
+        
+    # convert in positive cases
+    y_pos_pred = y_multi_pred * data_std[4] + data_mean[4]
+
+    # create df output
+    df_plot_pred_all = pd.DataFrame(index=list_dates_pred, columns=["date"], 
+                       data=list_dates_pred)
+    df_plot_pred_all["pos"] = y_pos_pred[0].astype(int)
+    arr_nb_pred = df_plot_pred_all["pos"].cumsum().values
+    df_plot_pred_all["nb_cases"] = df_feat_fr[df_feat_fr["date"] == \
+        df_plot_pred_all["date"].min()]["nb_cases"][0] + arr_nb_pred
+
+    return df_plot_pred_all
+
+
 def jsonifed_pred(df_plot_pred):
      return df_plot_pred.to_json(date_format='iso', orient='split')
 
 # FOR FIGURE
-def create_fig_pos(df_plot, df_plot_pred):
+def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all):
     # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -465,24 +521,31 @@ def create_fig_pos(df_plot, df_plot_pred):
                             y=df_plot_pred["nb_cases"],
                         mode='lines+markers',
                         line_shape='linear',
-                        connectgaps=True, name="Total predicted"),
+                        connectgaps=True, name="Future pred."),
                 secondary_y=False)
     # new cases
     fig.add_trace(go.Bar(x=df_plot["date"].astype(np.datetime64), 
                         y=df_plot["pos"], 
-                        name="New cases"), 
+                        name="Daily"), 
                 secondary_y=True)
 
     fig.add_trace(go.Bar(x=df_plot_pred["date"].astype(np.datetime64), 
                 y=df_plot_pred["pos"], 
-                name="New predicted"), 
+                name="Daily pred."), 
                 secondary_y=True)
+
+    fig.add_trace(go.Scatter(x=df_plot_pred_all["date"].astype(np.datetime64), 
+                            y=df_plot_pred_all["nb_cases"],
+                        mode='lines',
+                        line_shape='linear',
+                        connectgaps=True, name="Past pred."),
+                secondary_y=False)
     # Edit the layout
-    fig.update_layout(title='COVID-19 Confirmed cases (France)',
-                    yaxis_title='Total cases')
+    fig.update_layout(title='COVID-19 Confirmed cases (France) with prediction',
+                    yaxis_title='nb confirmed cases')
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1.1))
 
-    fig.update_yaxes(title_text="New cases", range=[0, 5000], secondary_y=True)
+    fig.update_yaxes(range=[0, 5000], secondary_y=True)
 
     return fig
 
@@ -524,8 +587,11 @@ def startup_layout():
     df_feat_fr = load_data_pos()
     
     df_plot = update_pos(df_feat_fr)
+    # predict 3 future days
     df_plot_pred = update_pred_pos(df_feat_fr)
-
+    # predict all past days
+    df_plot_pred_all = update_pred_pos_all(df_feat_fr)
+    # last date of training
     str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
 
     return html.Div(children=[
@@ -541,11 +607,13 @@ def startup_layout():
             children=html.Div(id="loading-output-1")
         ),
         dcc.Graph(id='covid-pos-graph',
-            figure=create_fig_pos(df_plot, df_plot_pred)
+            figure=create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all)
         ),
         # Hidden div inside the app that stores the intermediate value
         html.Div(id='predicted-value', style={'display': 'none'},
-            children=jsonifed_pred(df_plot_pred))
+            children=jsonifed_pred(df_plot_pred)),
+        html.Div(id='predicted-value-all', style={'display': 'none'},
+            children=jsonifed_pred(df_plot_pred_all))
         ])
 
 app.layout = startup_layout
@@ -567,8 +635,9 @@ def update_fig_pos(n_clicks):
     [dash.dependencies.Output('loading-output-1', 'children') , 
     dash.dependencies.Output('covid-pos-graph', 'figure')],
     [dash.dependencies.Input('update-data', 'n_clicks')],
-    [dash.dependencies.State('predicted-value', 'children')])
-def load_figure(n_clicks, jsonified_pred):
+    [dash.dependencies.State('predicted-value', 'children'),
+    dash.dependencies.State('predicted-value-all', 'children')])
+def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
     flag_update = check_update()
     if flag_update:
         get_data_pos()
@@ -578,13 +647,14 @@ def load_figure(n_clicks, jsonified_pred):
     if flag_update:
         # model predicting
         df_plot_pred = update_pred_pos(df_feat_fr)
+        df_plot_pred_all = update_pred_pos_all(df_feat_fr)
     else:
         # load from hidden div (no model predicting again)
         print("loading prediction from hidden div...")
         df_plot_pred = pd.read_json(jsonified_pred, orient='split')
-    
+        df_plot_pred_all = pd.read_json(jsonified_pred_all, orient='split')
     return conv_dt_2_str(get_file_date(PATH_DF_FEAT_FR)), \
-                        create_fig_pos(df_plot, df_plot_pred)
+                        create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all)
 
 if __name__ == '__main__':
     app.run_server(debug=True)
