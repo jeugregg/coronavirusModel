@@ -3,6 +3,7 @@
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
 
+import flask
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -35,22 +36,28 @@ PATH_DF_POS_FR = PATH_TO_SAVE_DATA + '/' + 'df_pos_fr.csv'
 PATH_DF_TEST_FR = PATH_TO_SAVE_DATA + '/' + 'df_test_fr.csv'
 PATH_JSON_METEO_FR = PATH_TO_SAVE_DATA + '/' + 'data_meteo_fr.json'
 PATH_DF_FEAT_FR = PATH_TO_SAVE_DATA + '/' + 'df_feat_fr.csv' 
+PATH_DF_GOUV_FR_RAW = PATH_TO_SAVE_DATA + '/' + 'df_gouv_fr_raw.csv'
 PATH_GEO_DEP_FR = PATH_TO_SAVE_DATA + '/sources/geofrance/' + 'departments.csv'
 PATH_MDL_SINGLE_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_single_step_pos_fr"
 PATH_MDL_MULTI_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_multi_step_pos_fr"
 URL_CSV_GOUV_FR = \
     'https://www.data.gouv.fr/fr/datasets/r/406c6a23-e283-4300-9484-54e78c8ae675'
-
+URL_GEOJSON_DEP_FR = 'sources/departements-avec-outre-mer_simple.json'
 NB_POS_DATE_MIN_DF_FEAT = 140227 # on 12/05/2020
 date_format = "%Y-%m-%d"
 # model parameters
-train_split = 50
+train_split = 58
 past_history = 10 # days used to predict next values in future
 future_target = 3 # predict 3 days later
 STEP = 1
 NB_DAY_PLOT = 60
 
+# Rt model
+nb_days_CV = 14
+
+###################
 # HELPER FUNCTIONS
+
 # FOR DATES
 def add_days(str_date_0, nb_days_CV):
     '''
@@ -100,6 +107,56 @@ def conv_dt_2_str(dt_in):
     Convert datatime to string date
     '''
     return  dt_in.strftime("%Y-%m-%d %H:%M:%S")
+
+def find_close_date(ser_dates, str_date_0, str_date_min):
+    '''
+    find closest date but not developped
+    '''
+    return str_date_0
+
+def create_date_ranges(ser_dates, nb_days_CV):
+    '''
+    Find first and last dates in "ser_dates" for last "nb_days_CV" days 
+    '''
+    ser_start = []
+    ser_end = []
+    date_format = "%Y-%m-%d"
+    # find first date : 
+    str_date_min = ser_dates.min()
+    str_date_max = ser_dates.max()
+    print("str_date_min: ", str_date_min)
+    print("str_date_max: ", str_date_max)
+    ser_end.append(str_date_max)
+    str_date_start = add_days(str_date_max, -(nb_days_CV-1))
+    next_date = find_close_date(ser_dates, str_date_start, str_date_min)
+    ser_start.append(next_date)
+    while ser_start[-1] > str_date_min:
+        ser_end.append(add_days(ser_end[-1], -1))
+        ser_start.append(add_days(ser_end[-1], -(nb_days_CV-1)))
+    return ser_start, ser_end
+
+def sum_between(ser_val, str_date_start, str_date_end):
+    '''
+    sum up values in series between 2 dates (index = date)
+    '''
+    b_range = (ser_val.index >= str_date_start) & \
+        (ser_val.index <= str_date_end) 
+    
+    return ser_val[b_range].sum()
+
+def sum_mobile(ser_val, ser_start, ser_end):
+    '''
+    mobile sums between dates start & end for ser_val (index = date)
+    '''
+    ser_sum = ser_val.copy()*np.NaN
+    # for each date range
+    for date_end, date_start in zip(ser_end, ser_start):
+        # calculate sum 
+        sum_curr = sum_between(ser_val, date_start, date_end)
+        # store at date
+        ser_sum.loc[date_end] = sum_curr
+
+    return ser_sum
 
 # For METEO
 def create_url_meteo_date(str_date):
@@ -233,16 +290,179 @@ def calc_list_mean_field(data_meteo, fieldname, fun):
         list_mean.append(calculate_mean_field(list_field, fun))
     return list_mean
 
-def get_data_pos():
+# For Calculation
+def mdl_R0_estim(nb_cases, nb_cases_init=1, nb_day_contag=14, delta_days=14):
     '''
-    1) Retrieve data from Sante Publique France direct CSV URL 
-        (updated every days but with 4 to 5 days delay...)
-    2) Proceed this data by departements (tested - positive)
-    3) Retrieve data from Méteo France
-    4) Proceed this data to have mean feature all over France every days
-    5) Proceed features data for model by combining all these data
+    R0 Model with exact formulation : 
+    Nb_cases(D) - Nb_cases(D-1) = Nb_cases(D-1) * R_0_CV / NB_DAY_CONTAG_CV
+    
+    Nb_cases(D) = Nb_cases(D0) * exp(R_0_CV / NB_DAY_CONTAG_CV * (D - DO))
+    
+    => 
+    R_0_CV = NB_DAY_CONTAG_CV / (D - DO) * ln( Nb_cases(D) / Nb_cases(D0))
+    
+    return R0
+    
+    '''
+    if type(nb_cases) == np.float64:
+        if nb_cases == 0:
+            return 0
+        return nb_day_contag / delta_days * math.log(nb_cases / \
+                                                     max(1, nb_cases_init))
+    else:
+        list_out = []
+        for I in range(len(nb_cases)):
+            try:
+                if nb_cases[I] == 0:
+                    list_out.append(0)
+                else:
+                    list_out.append(nb_day_contag / delta_days * \
+                        math.log(nb_cases[I] / max(1, nb_cases_init[I])))
+            except:
+                print("I = ",I)
+                print("nb_day_contag = ", nb_day_contag)
+                print("nb_cases[I] = ", nb_cases[I])
+                print("nb_cases_init[I] = ", nb_cases_init[I])
+                raise
+        return list_out
+# For DATA
+def get_geo_fr():
+    ###########
+    # GEOJSON : dep france : source : https://france-geojson.gregoiredavid.fr/
+    #
 
-    Every database is saved in CSV format.
+    #URL_GEOJSON_DEP_FR = 'sources/geojson-departements.json'
+    # source : https://github.com/gregoiredavid/france-geojson
+
+    with open(URL_GEOJSON_DEP_FR) as f:
+        dep_fr = json.load(f)
+
+    # example : 
+    # dep_fr['features'][0]['geometry']['type']
+    # dep_fr['features'][0]['geometry']["coordinates"]
+    # dep_fr['features'][0]["properties"]["code"]
+    # dep_fr['features'][0]["properties"]["nom"]
+
+    # get list dep / code
+    list_code = \
+        [feat_curr["properties"]["code"] for feat_curr in dep_fr['features']]
+    list_name = \
+        [feat_curr["properties"]["nom"] for feat_curr in dep_fr['features']]
+    df_code_dep = pd.DataFrame(data=list_code, columns=["code"])
+    df_code_dep["name"] = list_name
+
+    return dep_fr, df_code_dep
+
+def get_data_rt(df_gouv_fr_raw):
+    ############################
+    # Create data last 14 days : FRANCE Tested and Positive
+    # output : pt_fr_test_last DataFrame
+
+    pt_fr_test = pd.pivot_table(df_gouv_fr_raw, values=['t', 'p'], 
+                            index=["jour"],
+                    columns=["dep"], aggfunc=np.sum) 
+    pt_fr_test["date"] = pt_fr_test.index
+
+    df_dep_pos = pt_fr_test["p"].copy()
+    df_dep_pos.index = pt_fr_test["date"].index
+
+    df_dep_test = pt_fr_test["t"].copy()
+    df_dep_test.index = pt_fr_test["date"].index
+
+    # find last date 
+    date_format = "%Y-%m-%d"
+    str_date_last = df_gouv_fr_raw["jour"].max() 
+
+    # find start cumulative sum of confirmed cases / test
+    date_last = datetime.datetime.strptime(str_date_last, date_format)
+    date_start = date_last - datetime.timedelta(days=14-1)
+    str_date_start = date_start.strftime(date_format)
+
+    # create table of nb_cases of last date : sum of all last 14 days
+    # sum all from date_start :
+    bol_date_last14d = df_gouv_fr_raw["jour"] >= str_date_start
+
+    pt_fr_test_last = pd.pivot_table(df_gouv_fr_raw[bol_date_last14d], 
+                                    values=['t', 'p'], 
+                                index=["dep"], aggfunc=np.sum) 
+
+    pt_fr_test_last.index.name = ''
+    pt_fr_test_last["dep"] = pt_fr_test_last.index
+
+    ser_start , ser_end = create_date_ranges(df_gouv_fr_raw["jour"], nb_days_CV)
+    print("ser_start : ", ser_start)
+    print("ser_end : ", ser_end)
+
+    df_dep_sum = pd.DataFrame(index=df_dep_pos.index, columns=["date"],
+                            data=df_dep_pos.index.tolist())
+    for dep_curr in df_dep_pos.columns:
+        df_dep_sum[dep_curr] = sum_mobile(df_dep_pos[dep_curr], ser_start, 
+            ser_end)
+
+    df_dep_r0 = pd.DataFrame(index=df_dep_pos.index, columns=["date"],
+                            data=df_dep_pos.index.tolist())
+
+    for dep_curr in df_dep_sum.columns[1:]:
+        ser_val = df_dep_sum[dep_curr].copy()
+        date_min = add_days(ser_val.index.min(), nb_days_CV) 
+        ser_r0 = ser_val.copy()*np.nan
+        for date_curr in ser_val[ser_val.index >= date_min].index:
+            date_0 = add_days(date_curr, -nb_days_CV)
+            if not(np.isnan(ser_val.loc[date_0])):
+                sum_0 = ser_val.loc[date_0]
+                sum_1 = sum_0 + ser_val.loc[date_curr]
+                ser_r0.loc[date_curr] = mdl_R0_estim(nb_cases=sum_1, 
+                                                    nb_cases_init=sum_0,
+                                                    nb_day_contag=nb_days_CV, 
+                                                    delta_days=nb_days_CV)
+        df_dep_r0[dep_curr] = ser_r0
+        
+    df_dep_r0.dropna(inplace=True)
+
+    #################
+    # last R0 for MAP
+    #
+    dep_fr, df_code_dep = get_geo_fr()
+    # add departement name
+    pt_fr_test_last = pt_fr_test_last.merge(df_code_dep, left_on='dep', 
+                                            right_on='code')
+    # find last date 
+    date_format = "%Y-%m-%d"
+    date_p0 = date_start - datetime.timedelta(days=14)
+    str_date_p0 = date_p0.strftime(date_format)
+
+    # Nb_cases 14 days before: p_0
+    # sum cases 14 days period before current 14 days period 
+    # => period : 28 days -> 14 days before last date:
+    bol_date_p0 = (df_gouv_fr_raw["jour"] < str_date_start) & \
+        (df_gouv_fr_raw["jour"] >= str_date_p0)
+    pt_fr_test_p0 = pd.pivot_table(df_gouv_fr_raw[bol_date_p0], 
+                                    values=['p'], 
+                                index=["dep"], aggfunc=np.sum) 
+    pt_fr_test_p0.index.name = ''
+    pt_fr_test_p0["dep"] = pt_fr_test_p0.index
+    pt_fr_test_p0.columns = ["p_0", "dep"]
+    pt_fr_test_last = pt_fr_test_last.merge(pt_fr_test_p0, left_on='dep', 
+                                            right_on='dep')
+
+    # R0 Estimation :
+    # Nb_cases(T0) sum of confirmed cases with T0=T-14days = between T0-14days -> T0 
+    #   <=> (28 days before T -> 14 days before T)
+    #
+    # Nb cases(T):  sum of confirmed cases between T-28days -> T
+
+    pt_fr_test_last["R0"] = mdl_R0_estim(nb_cases=pt_fr_test_last["p_0"] + \
+                                        pt_fr_test_last["p"] , 
+                                        nb_cases_init=pt_fr_test_last["p_0"], 
+                                        nb_day_contag=14, 
+                                        delta_days=14)
+
+    return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep
+
+def get_data_gouv_fr():
+    '''
+    Get from Gouv  SFP page data cases in France 
+    Clean & Save
     '''
     # patch 29/07/2020 : SSL error patch
     req = requests.get(URL_CSV_GOUV_FR).content
@@ -256,6 +476,23 @@ def get_data_pos():
     # patch : clear data in double !!!
     df_gouv_fr_raw = df_gouv_fr_raw[df_gouv_fr_raw["cl_age90"] != 0]
 
+    df_gouv_fr_raw.to_csv(PATH_DF_GOUV_FR_RAW, index=False)
+
+    return df_gouv_fr_raw
+
+def get_data_pos():
+    '''
+    1) Retrieve data from Sante Publique France direct CSV URL 
+        (updated every days but with 4 to 5 days delay...)
+    2) Proceed this data by departements (tested - positive)
+    3) Retrieve data from Méteo France
+    4) Proceed this data to have mean feature all over France every days
+    5) Proceed features data for model by combining all these data
+
+    Every database is saved in CSV format.
+    '''
+
+    df_gouv_fr_raw = get_data_gouv_fr()
     # creation of table data : 't':tested 'p':positive
     # data =  f(line : date, dep / col: t) => f(line : date / col: dep = f(t)) 
     pt_fr_test = pd.pivot_table(df_gouv_fr_raw, values=['t', 'p'], 
@@ -266,12 +503,12 @@ def get_data_pos():
     # save data
     df_pos_fr = pt_fr_test["p"].copy()
     df_pos_fr.index = pt_fr_test["date"].index
-    df_pos_fr["date"] = df_pos_fr.index
+    #df_pos_fr["date"] = df_pos_fr.index
     df_pos_fr.to_csv(PATH_DF_POS_FR, index=False)
 
     df_test_fr = pt_fr_test["t"].copy()
     df_test_fr.index = pt_fr_test["date"].index
-    df_test_fr["date"] = df_test_fr.index
+    #df_test_fr["date"] = df_test_fr.index
     df_test_fr.to_csv(PATH_DF_TEST_FR, index=False)
 
     # meteo
@@ -283,13 +520,13 @@ def get_data_pos():
             data_meteo = json.load(f)
         # check start date
         date_meteo_start = get_data_meteo_date_min(data_meteo)
-        delta_days = days_between(df_pos_fr.date.min(), date_meteo_start)
+        delta_days = days_between(df_pos_fr.index.min(), date_meteo_start)
         if delta_days.days > 0:
             print(f"Must reload from start, {delta_days.days} days missing")
             f_reload_from_start = True
         # check last date
         date_meteo_end = get_data_meteo_date_max(data_meteo)
-        delta_days = days_between(date_meteo_end, df_pos_fr.date.max())
+        delta_days = days_between(date_meteo_end, df_pos_fr.index.max())
         if delta_days.days > 0:
             print(f"Must load more last days, {delta_days.days} days missing")
             f_load_missing = True
@@ -298,10 +535,10 @@ def get_data_pos():
         list_dates = None
         if f_reload_from_start:
             # all dates between [FORCED]
-            list_dates = df_pos_fr["date"].tolist()
+            list_dates = df_pos_fr.index.tolist()
         elif f_load_missing:
             # from date
-            list_dates = df_pos_fr["date"].tolist()
+            list_dates = df_pos_fr.index.tolist()
             # remove days already downloaded:
             list_remove = get_data_meteo_date_list(data_meteo)
             #get_data_meteo_date_list(data_meteo)
@@ -317,7 +554,7 @@ def get_data_pos():
         # all dates between [FORCED]
         f_reload_from_start = True
         f_load_missing = True
-        list_dates = df_pos_fr["date"].tolist()
+        list_dates = df_pos_fr.index.tolist()
     # if download needed
     if list_dates is not None:
         data_meteo_new = get_data_meteo_by_list(list_dates)
@@ -388,8 +625,11 @@ def get_data_pos():
     # add nb_cases
     arr_nb_cases = df_feat_fr["pos"].cumsum().values
     df_feat_fr["nb_cases"] = NB_POS_DATE_MIN_DF_FEAT + arr_nb_cases
+    
+    # save for future uses
     df_feat_fr.to_csv(PATH_DF_FEAT_FR, index=False)
 
+    
 
 
 # FOR data to plot
@@ -400,6 +640,18 @@ def load_data_pos():
     df_feat_fr = pd.read_csv(PATH_DF_FEAT_FR)
     df_feat_fr.index = df_feat_fr["date"]
     return df_feat_fr
+
+def load_data_gouv():
+    '''
+    Load data gouv France
+    '''
+    try:
+        df_gouv_fr_raw = pd.read_csv(PATH_DF_GOUV_FR_RAW)
+    except:
+        # try to get from URL
+        df_gouv_fr_raw = get_data_gouv_fr()
+
+    return df_gouv_fr_raw
 
 def update_pos(df_feat_fr):
     '''
@@ -514,7 +766,7 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all):
                             y=df_plot["nb_cases"],
                         mode='lines+markers',
                         line_shape='linear',
-                        connectgaps=True, name="Total cases"),
+                        connectgaps=True, name="Total"),
                 secondary_y=False)
 
     fig.add_trace(go.Scatter(x=df_plot_pred["date"].astype(np.datetime64), 
@@ -542,10 +794,89 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all):
                 secondary_y=False)
     # Edit the layout
     fig.update_layout(title='COVID-19 Confirmed cases (France) with prediction',
-                    yaxis_title='nb confirmed cases')
+                    yaxis_title='nb <b>Total</b> cases')
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1.1))
 
-    fig.update_yaxes(range=[0, 5000], secondary_y=True)
+    fig.update_yaxes(title_text="nb <b>Daily</b> cases", 
+                    range=[0, 5000], secondary_y=True)
+
+    return fig
+
+def create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last):
+    list_num_dep = df_dep_r0.columns[1:].tolist()
+    # path 975 & 977 & 978 doesn't exist in dep name data
+    list_num_dep.remove('975')
+    list_num_dep.remove('977')
+    list_num_dep.remove('978')
+
+    list_name_dep = [f'{dep_num_curr} - ' + \
+                df_code_dep.loc[df_code_dep["code"] == dep_num_curr,
+                                    "name"].values[0] + \
+                "<br>Rt=<b>{:.2f}</b>".format(df_dep_r0[dep_num_curr][-1]) + \
+                " cases={}".format(pt_fr_test_last.loc[ \
+                pt_fr_test_last.dep == dep_num_curr, "p"].values[0]) \
+                for dep_num_curr in list_num_dep]
+
+    nb_dep = len(list_num_dep)
+    nb_col = 4
+    nb_row = math.ceil(nb_dep/nb_col)
+    fig = make_subplots(rows=nb_row, cols=nb_col, shared_xaxes=True,
+                        shared_yaxes=True,
+                        subplot_titles=list_name_dep)
+    I_dep = 0
+    #list_color = []
+    for row in range(nb_row):
+        for col in range(nb_col):   
+            dep_num_curr = list_num_dep[I_dep]
+            dep_curr = df_code_dep.loc[df_code_dep["code"] == dep_num_curr, 
+                                    "name"].values[0]
+        
+            if (df_dep_r0[dep_num_curr][-1] > 1) & \
+                (pt_fr_test_last.loc[ \
+                    pt_fr_test_last.dep == dep_num_curr, "p"].values[0] > 400):
+                color_curr = "red"
+            elif (df_dep_r0[dep_num_curr][-1] > 1):
+                color_curr = "orange"
+            else:
+                color_curr = "blue"
+        
+            
+            fig.add_trace(go.Scatter(x=df_dep_r0["date"], 
+                        y=df_dep_r0[dep_num_curr],
+                        mode='lines', name=dep_curr, 
+                        line=dict(color=color_curr),
+                        fill='tozeroy'), 
+                        row=row+1, col=col+1)
+            
+            fig.add_trace(go.Scatter(x=[df_dep_r0["date"][0], 
+                                        df_dep_r0["date"][-1]], 
+                                    y=[1,1],
+                                    mode='lines', 
+                                    line=dict(color="red", dash='dash'),
+                                    hoverinfo="skip"), 
+                        row=row+1, col=col+1)
+            I_dep +=1
+            
+            if I_dep >= nb_dep: #nb_dep:
+                break
+        if I_dep >= nb_dep: #nb_dep:
+                break 
+
+    #fig.update_traces(patch=dict(font=dict(size=6)))
+    for I, subplot_title_curr in enumerate(fig['layout']['annotations']):
+        subplot_title_curr['font'] = dict(size=10)
+        subplot_title_curr['xshift'] = 0
+        subplot_title_curr['yshift'] = -10
+
+    fig.update_layout(
+        height=1800,
+        title="Rt: Estimated Reproduction Nb. in France ( until {} )".format( \
+            df_dep_r0['date'].max()),
+        showlegend=False,
+        font=dict(
+            size=12,
+        )
+    )
 
     return fig
 
@@ -569,7 +900,7 @@ def check_update():
 
 # APP DASH
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
+server = flask.Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
@@ -585,7 +916,7 @@ def startup_layout():
         get_data_pos()
     
     df_feat_fr = load_data_pos()
-    
+
     df_plot = update_pos(df_feat_fr)
     # predict 3 future days
     df_plot_pred = update_pred_pos(df_feat_fr)
@@ -594,8 +925,17 @@ def startup_layout():
     # last date of training
     str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
 
+    # rt plots
+    df_gouv_fr_raw = load_data_gouv()
+    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+        get_data_rt(df_gouv_fr_raw)
+
     return html.Div(children=[
-        html.H1(children='COVID-19 Cases Prediction in France'),
+        html.H1(children='COVID-19 Dashboard in France : Model & Dataviz'),
+        html.A(children="By G.LANG, Data Scientist Freelance",
+            href="http://greg.coolplace.fr/data-scientist-freelance", 
+            target="_blank"),
+        html.H3(children='COVID-19 Cases Prediction in France'),
         html.Div(children='''
         LMST deep learning model : predict 3 next days with 10 last days
         '''),
@@ -608,6 +948,9 @@ def startup_layout():
         ),
         dcc.Graph(id='covid-pos-graph',
             figure=create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all)
+        ),
+        dcc.Graph(id='covid-rt-graph',
+            figure=create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last)
         ),
         # Hidden div inside the app that stores the intermediate value
         html.Div(id='predicted-value', style={'display': 'none'},
@@ -657,6 +1000,7 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
                         create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all)
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    #app.run_server(debug=True)
+    app.run_server(host='0.0.0.0', debug=False, port=80)
     app.config.suppress_callback_exceptions = True
 
