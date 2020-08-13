@@ -756,7 +756,7 @@ def jsonifed_pred(df_plot_pred):
      return df_plot_pred.to_json(date_format='iso', orient='split')
 
 # FOR FIGURE
-def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all):
+def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
     # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -793,9 +793,12 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all):
                         connectgaps=True, name="Past pred."),
                 secondary_y=False)
     # Edit the layout
-    fig.update_layout(title='COVID-19 Confirmed cases (France) with prediction',
-                    yaxis_title='nb <b>Total</b> cases')
-    fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1.1))
+    title_fig = '<b>COVID-19 Confirmed cases in France with prediction</b>' + \
+        '<br>LMST Deep Learning Model : ' + \
+        'prediction of <b>3 days</b> from <b>last 10 days</b>' + \
+        '<br>Trained until ' + str_date_mdl
+    fig.update_layout(title=title_fig, yaxis_title='nb <b>Total</b> cases')
+    fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
 
     fig.update_yaxes(title_text="nb <b>Daily</b> cases", 
                     range=[0, 5000], secondary_y=True)
@@ -932,22 +935,19 @@ def startup_layout():
 
     return html.Div(children=[
         html.H1(children='COVID-19 Dashboard in France : Model & Dataviz'),
-        html.A(children="By G.LANG, Data Scientist Freelance",
-            href="http://greg.coolplace.fr/data-scientist-freelance", 
-            target="_blank"),
-        html.H3(children='COVID-19 Cases Prediction in France'),
-        html.Div(children='''
-        LMST deep learning model : predict 3 next days with 10 last days
-        '''),
-        html.Div(children='Model trained until : {}'.format(str_date_mdl)),
-        html.Button('Update Data', id='update-data', n_clicks=0),
-        dcc.Loading(
+        html.Div(children=html.Button('Update Data', id='update-data', 
+        n_clicks=0), style={'display': 'inline-block', 'margin-right': 10}),
+        html.Div(children=dcc.Loading(
             id="loading-fig-pos",
             type="default",
-            children=html.Div(id="loading-output-1")
-        ),
+            children=html.Div(id="loading-output-1")), 
+            style={'display': 'inline-block', 'margin-right': 10}),
+        html.Div(children=html.A(children="By G.LANG, Data Scientist Freelance",
+            href="http://greg.coolplace.fr/data-scientist-freelance", 
+            target="_blank"), style={'display': 'inline-block'}),
         dcc.Graph(id='covid-pos-graph',
-            figure=create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all)
+            figure=create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, 
+                str_date_mdl)
         ),
         dcc.Graph(id='covid-rt-graph',
             figure=create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last)
@@ -996,11 +996,14 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
         print("loading prediction from hidden div...")
         df_plot_pred = pd.read_json(jsonified_pred, orient='split')
         df_plot_pred_all = pd.read_json(jsonified_pred_all, orient='split')
+    # last date of training
+    str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
     return conv_dt_2_str(get_file_date(PATH_DF_FEAT_FR)), \
-                        create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all)
+                        create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all,
+                            str_date_mdl)
 
 if __name__ == '__main__':
     #app.run_server(debug=True)
-    app.run_server(host='0.0.0.0', debug=False, port=80)
+    app.run_server(host='0.0.0.0', debug=True, port=80)
     app.config.suppress_callback_exceptions = True
 
