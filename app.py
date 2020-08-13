@@ -3,7 +3,7 @@
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
 
-import flask
+#import flask
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -903,7 +903,7 @@ def check_update():
 
 # APP DASH
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-server = flask.Flask(__name__)
+#server = flask.Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
@@ -945,13 +945,16 @@ def startup_layout():
         html.Div(children=html.A(children="By G.LANG, Data Scientist Freelance",
             href="http://greg.coolplace.fr/data-scientist-freelance", 
             target="_blank"), style={'display': 'inline-block'}),
-        dcc.Graph(id='covid-pos-graph',
+        dcc.Tabs(id='tabs-example', value='tab-1', children=[
+            dcc.Tab(label='Confirmed Cases', value='tab-1', children=[
+            dcc.Graph(id='covid-pos-graph',
             figure=create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, 
-                str_date_mdl)
-        ),
-        dcc.Graph(id='covid-rt-graph',
-            figure=create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last)
-        ),
+                str_date_mdl))
+            ]),
+            dcc.Tab(label='Rt Map', value='tab-2', children=[
+                dcc.Graph(id='covid-rt-graph',
+            figure=create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last))
+            ])]),
         # Hidden div inside the app that stores the intermediate value
         html.Div(id='predicted-value', style={'display': 'none'},
             children=jsonifed_pred(df_plot_pred)),
@@ -973,6 +976,29 @@ def update_fig_pos(n_clicks):
     df_plot_pred = update_pred_pos(df_feat_fr)
     return create_fig_pos(df_plot, df_plot_pred)
 '''
+
+@app.callback(Output('tabs-example-content', 'children'),
+              [Input('tabs-example', 'value')],
+              [dash.dependencies.State('predicted-value', 'children'),
+                dash.dependencies.State('predicted-value-all', 'children')])
+def render_content(tab, jsonified_pred, jsonified_pred_all):
+    if tab == 'tab-1':
+
+        df_feat_fr = load_data_pos()
+        df_plot = update_pos(df_feat_fr)
+        df_plot_pred = pd.read_json(jsonified_pred, orient='split')
+        df_plot_pred_all = pd.read_json(jsonified_pred_all, orient='split')
+        str_date_mdl = df_feat_fr.iloc[train_split]["date"]
+
+        return dcc.Graph(id='covid-pos-graph',
+            figure=create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, 
+                str_date_mdl))
+
+    elif tab == 'tab-2':
+        return html.Div([
+            html.H3('Tab content 2')
+        ])
+
 
 @app.callback(
     [dash.dependencies.Output('loading-output-1', 'children') , 
@@ -1003,7 +1029,7 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
                             str_date_mdl)
 
 if __name__ == '__main__':
-    #app.run_server(debug=True)
-    app.run_server(host='0.0.0.0', debug=True, port=80)
+    app.run_server(debug=True)
+    #app.run_server(host='0.0.0.0', debug=False, port=80)
     app.config.suppress_callback_exceptions = True
 
