@@ -3,7 +3,7 @@
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
 
-#import flask
+import flask
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -37,6 +37,12 @@ PATH_DF_TEST_FR = PATH_TO_SAVE_DATA + '/' + 'df_test_fr.csv'
 PATH_JSON_METEO_FR = PATH_TO_SAVE_DATA + '/' + 'data_meteo_fr.json'
 PATH_DF_FEAT_FR = PATH_TO_SAVE_DATA + '/' + 'df_feat_fr.csv' 
 PATH_DF_GOUV_FR_RAW = PATH_TO_SAVE_DATA + '/' + 'df_gouv_fr_raw.csv'
+
+PATH_DF_DEP_R0 = PATH_TO_SAVE_DATA + '/' + 'df_dep_r0.csv'
+PATH_PT_FR_TEST_LAST = PATH_TO_SAVE_DATA + '/' + 'pt_fr_test_last.csv'
+PATH_DEP_FR = PATH_TO_SAVE_DATA + '/' + 'dep_fr.csv'
+PATH_DF_CODE_DEP = PATH_TO_SAVE_DATA + '/' + 'df_code_dep.csv'
+
 PATH_GEO_DEP_FR = PATH_TO_SAVE_DATA + '/sources/geofrance/' + 'departments.csv'
 PATH_MDL_SINGLE_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_single_step_pos_fr"
 PATH_MDL_MULTI_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_multi_step_pos_fr"
@@ -457,6 +463,10 @@ def get_data_rt(df_gouv_fr_raw):
                                         nb_day_contag=14, 
                                         delta_days=14)
 
+    df_dep_r0.to_csv(PATH_DF_DEP_R0, index=False)
+
+    pt_fr_test_last.to_csv(PATH_PT_FR_TEST_LAST, index=False)
+
     return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep
 
 def get_data_gouv_fr():
@@ -653,6 +663,14 @@ def load_data_gouv():
 
     return df_gouv_fr_raw
 
+def load_df_dep_r0():
+    df_dep_r0 = pd.read_csv(PATH_DF_DEP_R0)
+    df_dep_r0.index = df_dep_r0["date"]
+    return df_dep_r0
+
+def load_pt_fr_test_last():
+    return pd.read_csv(PATH_PT_FR_TEST_LAST)
+
 def update_pos(df_feat_fr):
     '''
     Update plot data positive cases France
@@ -795,7 +813,7 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
     # Edit the layout
     title_fig = '<b>COVID-19 Confirmed cases in France with prediction</b>' + \
         '<br>LMST Deep Learning Model : ' + \
-        'prediction of <b>3 days</b> from <b>last 10 days</b>' + \
+        '<b>3 days</b> prediction from <b>last 10 days</b>' + \
         '<br>Trained until ' + str_date_mdl
     fig.update_layout(title=title_fig, yaxis_title='nb <b>Total</b> cases')
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
@@ -883,6 +901,170 @@ def create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last):
 
     return fig
 
+def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
+    #####################
+    # Graph Rt map France
+    #
+    # data : 
+    # - dep_fr (geo json )
+    # - pt_fr_test_last
+
+    lat_lon_fr =  {'lat':  46, 'lon': 2}
+    zoom_fr = 4.25
+    mapbox_args_fr = {'center': lat_lon_fr, 
+                    'style': 'carto-positron', 'zoom': zoom_fr}
+
+    mapbox_args_idf = {'center': {'lat':  48.86, 'lon': 2.33}, 
+                    'style': 'carto-positron', 'zoom': 7}
+    mapbox_args_dom = {'center': {'lat':  17, 'lon': -2}, 
+                    'style': 'carto-positron', 'zoom': 2}
+
+    # Initialize figure
+
+    fig = go.Figure()
+
+
+    # Add Traces
+
+    fig.add_trace(
+        go.Choroplethmapbox(geojson=dep_fr, name="positive",
+                                        locations=pt_fr_test_last["name"], 
+                                        featureidkey="properties.nom",
+                                        z=pt_fr_test_last["p"],
+                                        marker_opacity=0.7, marker_line_width=0))
+
+    fig.add_trace(
+        go.Choroplethmapbox(geojson=dep_fr, name="tested",
+                                        locations=pt_fr_test_last["name"], 
+                                        featureidkey="properties.nom",
+                                        z=pt_fr_test_last["t"],
+                                        marker_opacity=0.7, marker_line_width=0,
+                                        visible=False))
+
+    fig.add_trace(
+        go.Choroplethmapbox(geojson=dep_fr, name="Rt",
+                                        locations=pt_fr_test_last["name"], 
+                                        featureidkey="properties.nom",
+                                        z=pt_fr_test_last["R0"], zmin=.5, zmax=1.5,
+                                        marker_opacity=0.7, marker_line_width=0,
+                                        visible=False))
+
+    annot_conf=[dict( \
+        text="France : <b>Confirmed</b> cases (Sum during last 14 days before " + \
+        f"{str_date_last})", 
+                    x=0, xref="paper", y=1, yref="paper",
+                                align="left", showarrow=False,
+                    bgcolor="#FFFFFF")]
+
+    annot_test=[dict( \
+        text="France : <b>Tested</b> cases (Sum during last 14 days before " + \
+        f"{str_date_last})", x=0, xref="paper", y=1, yref="paper",
+                                align="left", showarrow=False,
+                    bgcolor="#FFFFFF")]
+
+    annot_r0=[dict( \
+        text="France : <b>Rt</b> estimated on last 14 days before " + \
+        f"{str_date_last})", x=0, xref="paper", y=1, yref="paper",
+                                align="left", showarrow=False,
+                    bgcolor="#FFFFFF")]
+
+    fig.update_layout(
+        updatemenus=[
+            dict(
+                type="buttons",
+                direction="right",
+                xanchor="left",
+                y=0.95,
+                x=0,
+                active=0,
+                showactive=True,
+                buttons=list([
+                    dict(label="Confirmed",
+                        method="update",
+                        args=[{"visible": [True, False, False]},
+                            {"annotations": annot_conf}]),
+                    
+                    dict(label="Tested",
+                        method="update",
+                        args=[{"visible": [False, True, False]},
+                            {"annotations": annot_test}]),
+                    
+                    dict(label="Rt",
+                        method="update",
+                        args=[{"visible": [False, False, True]},
+                            {"annotations": annot_r0}]), 
+                    
+                    dict(label="Zoom : IdF",
+                        method="relayout",
+                        args=[{"mapbox": mapbox_args_idf}]),
+                    
+                dict(label="France",
+                        method="relayout",
+                        args=[{"mapbox": mapbox_args_fr}]), 
+                    
+                dict(label="DOM-TOM",
+                        method="relayout",
+                        args=[{"mapbox": mapbox_args_dom}]),
+                ]),
+            )
+        ])
+
+    fig.update_layout(mapbox_style="carto-positron",
+                    mapbox_zoom=zoom_fr, mapbox_center = lat_lon_fr)
+
+    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+    fig.update_layout(annotations=annot_conf)
+
+    return fig
+
+def create_fig_rt_dep(dep_curr, df_code_dep,pt_fr_test_last, df_dep_r0):
+    ####################################
+    # Rt evolution plots for one departement
+    #
+    # data : 
+    # - df_dep_r0 (date,  date / dep. Rt)
+    # - df_code_dep (-, dep. code / dep name )
+    # - pt_fr_test_last (-, p / t / dep / code / name / p_0 / R0)
+    dep_num_curr = df_code_dep.loc[df_code_dep["name"] == dep_curr, 
+                            "code"].values[0]
+
+    if (df_dep_r0[dep_num_curr][-1] > 1) & \
+        (pt_fr_test_last.loc[ \
+            pt_fr_test_last.dep == dep_num_curr, "p"].values[0] > 400):
+        color_curr = "red"
+    elif (df_dep_r0[dep_num_curr][-1] > 1):
+        color_curr = "orange"
+    else:
+        color_curr = "blue"
+        
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(x=df_dep_r0["date"], y=df_dep_r0[dep_num_curr],
+                mode='lines', name=dep_curr, line=dict(color=color_curr),
+                fill='tozeroy'))
+
+    fig.add_trace(go.Scatter(x=[df_dep_r0["date"][0], 
+                                df_dep_r0["date"][-1]], 
+                            y=[1,1],
+                            mode='lines', 
+                            line=dict(color="red", dash='dash'),
+                            hoverinfo="skip"))
+
+    subtitle_curr = "For last 14 days : " + \
+        "Rt=<b>{:.2f}</b>".format(df_dep_r0[dep_num_curr][-1]) + \
+                    " with {} confirmed cases ".format(pt_fr_test_last.loc[ \
+                    pt_fr_test_last.dep == dep_num_curr, "p"].values[0])
+
+    fig.update_layout( \
+        title="<b>{}</b> : Estimated Reproduction Nb.<br>( until {} )".format( \
+            dep_curr, df_dep_r0['date'].max()) + '<br>' + subtitle_curr,
+        showlegend=False,
+        font=dict(
+            size=12,
+        )
+    )
+    return fig
+
 def check_update():
     '''
     Just check if new data possibly available
@@ -903,7 +1085,7 @@ def check_update():
 
 # APP DASH
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-#server = flask.Flask(__name__)
+server = flask.Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
@@ -932,6 +1114,15 @@ def startup_layout():
     df_gouv_fr_raw = load_data_gouv()
     df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
         get_data_rt(df_gouv_fr_raw)
+    str_date_last = df_plot.date.max()
+
+    # for debug
+    styles = {
+    'pre': {
+        'border': 'thin lightgrey solid',
+        'overflowX': 'scroll'
+        }
+    }
 
     return html.Div(children=[
         html.H1(children='COVID-19 Dashboard in France : Model & Dataviz'),
@@ -942,19 +1133,30 @@ def startup_layout():
             type="default",
             children=html.Div(id="loading-output-1")), 
             style={'display': 'inline-block', 'margin-right': 10}),
+            
         html.Div(children=html.A(children="By G.LANG, Data Scientist Freelance",
             href="http://greg.coolplace.fr/data-scientist-freelance", 
             target="_blank"), style={'display': 'inline-block'}),
+
         dcc.Tabs(id='tabs-example', value='tab-1', children=[
             dcc.Tab(label='Confirmed Cases', value='tab-1', children=[
             dcc.Graph(id='covid-pos-graph',
             figure=create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, 
-                str_date_mdl))
+                str_date_mdl), style={'margin-top': 10})
             ]),
             dcc.Tab(label='Rt Map', value='tab-2', children=[
-                dcc.Graph(id='covid-rt-graph',
-            figure=create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last))
-            ])]),
+                #dcc.Graph(id='covid-rt-graph',
+            #figure=create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last))
+                html.Div(dcc.Graph(id='covid-rt-map',
+            figure=create_fig_map(pt_fr_test_last, dep_fr, str_date_last), 
+                ), style={'width': '59%', 'display': 'inline-block', 
+                    'margin-right': 1}),
+                html.Div(dcc.Graph(id='covid-rt-dep-graph',
+            figure=create_fig_rt_dep("Paris", df_code_dep,pt_fr_test_last, 
+                df_dep_r0)), style={'width': '39%', 'display': 'inline-block', 
+                'margin-top': 10})
+            ])
+        ], style={'margin-top': 10}),
         # Hidden div inside the app that stores the intermediate value
         html.Div(id='predicted-value', style={'display': 'none'},
             children=jsonifed_pred(df_plot_pred)),
@@ -966,40 +1168,6 @@ app.layout = startup_layout
 
 
 # button update data
-'''
-@app.callback(
-    dash.dependencies.Output('covid-pos-graph', 'figure'),
-    [dash.dependencies.Input('update-data', 'n_clicks')])
-def update_fig_pos(n_clicks):
-    df_feat_fr = load_data_pos()
-    df_plot = update_pos(df_feat_fr)
-    df_plot_pred = update_pred_pos(df_feat_fr)
-    return create_fig_pos(df_plot, df_plot_pred)
-'''
-
-@app.callback(Output('tabs-example-content', 'children'),
-              [Input('tabs-example', 'value')],
-              [dash.dependencies.State('predicted-value', 'children'),
-                dash.dependencies.State('predicted-value-all', 'children')])
-def render_content(tab, jsonified_pred, jsonified_pred_all):
-    if tab == 'tab-1':
-
-        df_feat_fr = load_data_pos()
-        df_plot = update_pos(df_feat_fr)
-        df_plot_pred = pd.read_json(jsonified_pred, orient='split')
-        df_plot_pred_all = pd.read_json(jsonified_pred_all, orient='split')
-        str_date_mdl = df_feat_fr.iloc[train_split]["date"]
-
-        return dcc.Graph(id='covid-pos-graph',
-            figure=create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, 
-                str_date_mdl))
-
-    elif tab == 'tab-2':
-        return html.Div([
-            html.H3('Tab content 2')
-        ])
-
-
 @app.callback(
     [dash.dependencies.Output('loading-output-1', 'children') , 
     dash.dependencies.Output('covid-pos-graph', 'figure')],
@@ -1025,11 +1193,27 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
     # last date of training
     str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
     return conv_dt_2_str(get_file_date(PATH_DF_FEAT_FR)), \
-                        create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all,
-                            str_date_mdl)
+        create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl)
+
+# click on map
+@app.callback(
+    Output('covid-rt-dep-graph', 'figure'),
+    [Input('covid-rt-map', 'clickData')])
+def display_click_data(clickData):
+    try:
+        dep_curr = clickData["points"][0]["location"]
+    except:
+        dep_curr = "Paris"
+
+    _, df_code_dep = get_geo_fr()
+    df_dep_r0 = load_df_dep_r0()
+    pt_fr_test_last = load_pt_fr_test_last()
+
+    return create_fig_rt_dep(dep_curr, df_code_dep, 
+                pt_fr_test_last, df_dep_r0)
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
-    #app.run_server(host='0.0.0.0', debug=False, port=80)
+    #app.run_server(debug=True)
+    app.run_server(host='0.0.0.0', debug=True, port=80)
     app.config.suppress_callback_exceptions = True
 
