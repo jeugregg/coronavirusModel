@@ -3,13 +3,16 @@
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
 
+PREDICT = False
+
 import flask
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-import tensorflow as tf
+if PREDICT:
+    import tensorflow as tf
 
 import pandas as pd
 import numpy as np
@@ -44,6 +47,10 @@ PATH_DEP_FR = PATH_TO_SAVE_DATA + '/' + 'dep_fr.csv'
 PATH_DF_CODE_DEP = PATH_TO_SAVE_DATA + '/' + 'df_code_dep.csv'
 
 PATH_GEO_DEP_FR = PATH_TO_SAVE_DATA + '/sources/geofrance/' + 'departments.csv'
+
+PATH_DF_PLOT_PRED = PATH_TO_SAVE_DATA + '/' + 'df_plot_pred.csv'
+PATH_DF_PLOT_PRED_ALL = PATH_TO_SAVE_DATA + '/' + 'df_plot_pred_all.csv'
+
 PATH_MDL_SINGLE_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_single_step_pos_fr"
 PATH_MDL_MULTI_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_multi_step_pos_fr"
 URL_CSV_GOUV_FR = \
@@ -499,7 +506,7 @@ def get_data_pos():
     4) Proceed this data to have mean feature all over France every days
     5) Proceed features data for model by combining all these data
 
-    Every database is saved in CSV format.
+    Every databases are saved in CSV format.
     '''
 
     df_gouv_fr_raw = get_data_gouv_fr()
@@ -521,6 +528,10 @@ def get_data_pos():
     #df_test_fr["date"] = df_test_fr.index
     df_test_fr.to_csv(PATH_DF_TEST_FR, index=False)
 
+    # if no prediction, stop here
+    #if PREDICT == False:
+    #    return
+    
     # meteo
     if os.path.isfile(PATH_JSON_METEO_FR):
         f_reload_from_start = False
@@ -684,6 +695,10 @@ def update_pred_pos(df_feat_fr):
     '''
     Update prediction data positive cases France
     '''
+    if PREDICT == False:
+        df_plot_pred = pd.read_csv(PATH_DF_PLOT_PRED)
+        df_plot_pred.index = df_plot_pred["date"]
+        return df_plot_pred
     # load model
     multi_step_model = tf.keras.models.load_model(PATH_MDL_MULTI_STEP)
 
@@ -713,12 +728,19 @@ def update_pred_pos(df_feat_fr):
     arr_nb_pred = df_plot_pred["pos"].cumsum().values
     df_plot_pred["nb_cases"] = df_feat_fr["nb_cases"].max() + arr_nb_pred
 
+    # save for futur pred
+    df_plot_pred.to_csv(PATH_DF_PLOT_PRED, index=False)
+
     return df_plot_pred
 
 def update_pred_pos_all(df_feat_fr):
     '''
     Update prediction data positive cases France for all days
     '''
+    if PREDICT == False:
+        df_plot_pred_all = pd.read_csv(PATH_DF_PLOT_PRED_ALL)
+        df_plot_pred_all.index = df_plot_pred_all["date"]
+        return df_plot_pred_all
     # load model
     multi_step_model = tf.keras.models.load_model(PATH_MDL_MULTI_STEP)
 
@@ -766,6 +788,9 @@ def update_pred_pos_all(df_feat_fr):
     arr_nb_pred = df_plot_pred_all["pos"].cumsum().values
     df_plot_pred_all["nb_cases"] = df_feat_fr[df_feat_fr["date"] == \
         df_plot_pred_all["date"].min()]["nb_cases"][0] + arr_nb_pred
+
+    # save for future pred
+    df_plot_pred_all.to_csv(PATH_DF_PLOT_PRED_ALL, index=False)
 
     return df_plot_pred_all
 
