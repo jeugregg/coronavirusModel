@@ -53,8 +53,8 @@ PATH_DF_PLOT_PRED_ALL = PATH_TO_SAVE_DATA + '/' + 'df_plot_pred_all.csv'
 
 PATH_MDL_SINGLE_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_single_step_pos_fr"
 PATH_MDL_MULTI_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_multi_step_pos_fr"
-URL_CSV_GOUV_FR = \
-    'https://www.data.gouv.fr/fr/datasets/r/406c6a23-e283-4300-9484-54e78c8ae675'
+URL_CSV_GOUV_FR = 'https://www.data.gouv.fr/' + \
+    'fr/datasets/r/406c6a23-e283-4300-9484-54e78c8ae675'
 URL_GEOJSON_DEP_FR = 'sources/departements-avec-outre-mer_simple.json'
 NB_POS_DATE_MIN_DF_FEAT = 140227 # on 12/05/2020
 date_format = "%Y-%m-%d"

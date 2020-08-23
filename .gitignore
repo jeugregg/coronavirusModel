@@ -1,4 +1,7 @@
-
 .ipynb_checkpoints
 *.pyc
 old
+.*
+outputs
+node_modules
+__pycache__
