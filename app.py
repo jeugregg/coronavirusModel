@@ -3,7 +3,8 @@
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
 
-PREDICT = False
+PREDICT = True
+MODEL_TFLITE = True
 
 import flask
 import dash
@@ -12,7 +13,8 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 if PREDICT:
-    import tensorflow as tf
+    if MODEL_TFLITE == False:
+        import tensorflow as tf
 
 import pandas as pd
 import numpy as np
@@ -65,6 +67,8 @@ future_target = 3 # predict 3 days later
 STEP = 1
 NB_DAY_PLOT = 60
 
+# model TLITE AWS LAMBDA
+URL_PREDICT = 'https://yl0910jrga.execute-api.us-east-2.amazonaws.com/dev/infer'
 # Rt model
 nb_days_CV = 14
 
@@ -403,8 +407,8 @@ def get_data_rt(df_gouv_fr_raw):
     pt_fr_test_last["dep"] = pt_fr_test_last.index
 
     ser_start , ser_end = create_date_ranges(df_gouv_fr_raw["jour"], nb_days_CV)
-    print("ser_start : ", ser_start)
-    print("ser_end : ", ser_end)
+    #print("ser_start : ", ser_start)
+    #print("ser_end : ", ser_end)
 
     df_dep_sum = pd.DataFrame(index=df_dep_pos.index, columns=["date"],
                             data=df_dep_pos.index.tolist())
@@ -650,8 +654,57 @@ def get_data_pos():
     # save for future uses
     df_feat_fr.to_csv(PATH_DF_FEAT_FR, index=False)
 
+ # FOR AWS Lambda predict
+def prepare_to_lambda(dataset):
+    '''
+    Prepare data input model to be used by lambda: 
     
+    for prediction all past days
+    '''
+    list_list_x = [] # size : 17*10*7=1190 / df_feat_fr size : 98*6=864
+    K_days = 0
+    # prepare data : very last days
+    nb_max = int((NB_DAY_PLOT)/future_target)
+    for I in range(nb_max, 0, -1):
+        I_start = I * future_target - past_history
+        if I_start < 0:
+            break
+        I_end = I * future_target
+        #print(f"[{I_start} - {I_end}]")
+        list_list_x.append(np.array([dataset[I_start:I_end, :]]).tolist())
+        K_days += future_target
+        
+    json_list_list_x = json.dumps(list_list_x)
+    return json_list_list_x
 
+def retrieve_from_lambda(response):
+    '''
+    To retrieve prediction from AWS Lambda
+    '''
+
+    if type(response)  == requests.models.Response:
+        list_list_out = response.json()
+    else: # for local test
+        json_list_list_out = response.get("body")
+        list_list_out = json.loads(json_list_list_out)
+    
+    y_multi_pred_out = []
+    for I, list_x_multi in enumerate(list_list_out):
+        if I:
+            y_multi_pred_out = np.concatenate([y_multi_pred_out, 
+                                           np.array(list_x_multi)],
+                                  axis=1)
+        else: # for first entry
+            y_multi_pred_out = np.array(list_x_multi)
+    return y_multi_pred_out   
+
+def prepare_to_lambda_future(dataset):
+    '''
+    Prepare data input model to be used by lambda: 
+    
+    for prediction of very last days
+    '''
+    return json.dumps([[dataset[-past_history:,:].tolist()]])
 
 # FOR data to plot
 def load_data_pos():
@@ -691,16 +744,14 @@ def update_pos(df_feat_fr):
     df_plot = df_feat_fr[df_feat_fr["date"] >= str_date_0].copy()
     return df_plot
 
-def update_pred_pos(df_feat_fr):
+def update_pred_pos(df_feat_fr, from_disk=False):
     '''
     Update prediction data positive cases France
     '''
-    if PREDICT == False:
+    if (PREDICT == False) | (from_disk == True):
         df_plot_pred = pd.read_csv(PATH_DF_PLOT_PRED)
         df_plot_pred.index = df_plot_pred["date"]
         return df_plot_pred
-    # load model
-    multi_step_model = tf.keras.models.load_model(PATH_MDL_MULTI_STEP)
 
     # prepare features
     features = df_feat_fr.copy().filter(items=['T_min', 'T_max', 'H_min',
@@ -710,10 +761,26 @@ def update_pred_pos(df_feat_fr):
     data_mean = dataset[:train_split].mean(axis=0)
     data_std = dataset[:train_split].std(axis=0)
     dataset = (dataset-data_mean)/data_std
-    # prepare data : very last days
-    x_multi = np.array([dataset[-past_history:,:]]) 
+
     # predict next days
-    y_multi_pred = multi_step_model.predict(x_multi)
+    if MODEL_TFLITE:
+        json_list_list_x = prepare_to_lambda_future(dataset)
+        resp = requests.post(URL_PREDICT, json=json_list_list_x)
+        print("status code : ", resp.status_code) 
+        if resp.status_code == 200:
+            y_multi_pred = retrieve_from_lambda(resp)
+        else:
+            print("AWS Lamdba future pred ERROR!")
+            df_plot_pred = pd.read_csv(PATH_DF_PLOT_PRED)
+            df_plot_pred.index = df_plot_pred["date"]
+            return df_plot_pred            
+    else:
+        # prepare data : very last days
+        x_multi = np.array([dataset[-past_history:,:]]) 
+        # load model
+        multi_step_model = tf.keras.models.load_model(PATH_MDL_MULTI_STEP)
+        y_multi_pred = multi_step_model.predict(x_multi)
+
     # convert in positive cases
     y_pos_pred = y_multi_pred * data_std[4] + data_mean[4]
     # pos pred next 3 days from last day : date, pos, total (sum)
@@ -733,16 +800,14 @@ def update_pred_pos(df_feat_fr):
 
     return df_plot_pred
 
-def update_pred_pos_all(df_feat_fr):
+def update_pred_pos_all(df_feat_fr, from_disk=False):
     '''
     Update prediction data positive cases France for all days
     '''
-    if PREDICT == False:
+    if (PREDICT == False) | (from_disk == True):
         df_plot_pred_all = pd.read_csv(PATH_DF_PLOT_PRED_ALL)
         df_plot_pred_all.index = df_plot_pred_all["date"]
         return df_plot_pred_all
-    # load model
-    multi_step_model = tf.keras.models.load_model(PATH_MDL_MULTI_STEP)
 
     # prepare features
     features = df_feat_fr.copy().filter(items=['T_min', 'T_max', 'H_min',
@@ -753,33 +818,54 @@ def update_pred_pos_all(df_feat_fr):
     data_std = dataset[:train_split].std(axis=0)
     dataset = (dataset-data_mean)/data_std
 
-    list_x = []
-    K_days = 0
-    # prepare data : very last days
-    nb_max = int((NB_DAY_PLOT)/future_target)
-    for I in range(nb_max, 0, -1):
-        I_start = I * future_target - past_history
-        if I_start < 0:
-            break
-        I_end = I * future_target
-        list_x.append(np.array([dataset[I_start:I_end, :]]))
-        K_days += future_target
-
-    str_date_pred_1 = df_feat_fr.date.max()
-    str_date_pred_0 = add_days(str_date_pred_1, -1*K_days)
-    list_dates_pred = generate_list_dates(str_date_pred_0, str_date_pred_1)
-
-    # model prediction
-    for I, x_multi in enumerate(list_x):
-        if I:
-            y_multi_pred = np.concatenate([y_multi_pred, 
-                                        multi_step_model.predict(x_multi)],
-                                axis=1)
+    # predict
+    if MODEL_TFLITE:
+        json_list_list_x = prepare_to_lambda(dataset)
+        resp = requests.post(URL_PREDICT, json=json_list_list_x)
+        print("status code : ", resp.status_code) 
+        if resp.status_code == 200:
+            y_multi_pred = retrieve_from_lambda(resp)
         else:
-            y_multi_pred = multi_step_model.predict(x_multi)
+            print("AWS Lamdba future pred ERROR!")
+            df_plot_pred_all = pd.read_csv(PATH_DF_PLOT_PRED_ALL)
+            df_plot_pred_all.index = df_plot_pred_all["date"]
+            return df_plot_pred_all       
+    else:
+
+        # load model
+        multi_step_model = tf.keras.models.load_model(PATH_MDL_MULTI_STEP)
+
+        list_x = []
+        #K_days = 0
+        # prepare data : very last days
+        nb_max = int((NB_DAY_PLOT)/future_target)
+        for I in range(nb_max, 0, -1):
+            I_start = I * future_target - past_history
+            if I_start < 0:
+                break
+            I_end = I * future_target
+            list_x.append(np.array([dataset[I_start:I_end, :]]))
+            #K_days += future_target
+
+        # model prediction
+        for I, x_multi in enumerate(list_x):
+            if I:
+                y_multi_pred = np.concatenate([y_multi_pred, 
+                                            multi_step_model.predict(x_multi)],
+                                    axis=1)
+            else:
+                y_multi_pred = multi_step_model.predict(x_multi)
         
     # convert in positive cases
     y_pos_pred = y_multi_pred * data_std[4] + data_mean[4]
+
+    # list od dates
+    K_days = y_pos_pred.shape[1]
+    print("K_days = ", K_days)
+    print("y_pos_pred.shape = ", y_pos_pred.shape)
+    str_date_pred_1 = df_feat_fr.date.max()
+    str_date_pred_0 = add_days(str_date_pred_1, -1*K_days)
+    list_dates_pred = generate_list_dates(str_date_pred_0, str_date_pred_1)
 
     # create df output
     df_plot_pred_all = pd.DataFrame(index=list_dates_pred, columns=["date"], 
@@ -1122,16 +1208,19 @@ def startup_layout():
     #dtime_now  = datetime.datetime.now() - time_file_df_feat_date
 
     # update 
-    if check_update():
+    flag_update = check_update()
+    if flag_update:
         get_data_pos()
-    
+        
+    # load from disk
     df_feat_fr = load_data_pos()
-
     df_plot = update_pos(df_feat_fr)
+
     # predict 3 future days
-    df_plot_pred = update_pred_pos(df_feat_fr)
+    flag_pred_disk = not(flag_update)
+    df_plot_pred = update_pred_pos(df_feat_fr, flag_pred_disk)
     # predict all past days
-    df_plot_pred_all = update_pred_pos_all(df_feat_fr)
+    df_plot_pred_all = update_pred_pos_all(df_feat_fr, flag_pred_disk)
     # last date of training
     str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
 
