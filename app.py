@@ -61,7 +61,7 @@ URL_GEOJSON_DEP_FR = 'sources/departements-avec-outre-mer_simple.json'
 NB_POS_DATE_MIN_DF_FEAT = 140227 # on 12/05/2020
 date_format = "%Y-%m-%d"
 # model parameters
-train_split = 58
+train_split = 83
 past_history = 10 # days used to predict next values in future
 future_target = 3 # predict 3 days later
 STEP = 1
