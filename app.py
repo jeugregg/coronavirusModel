@@ -922,10 +922,11 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
                         connectgaps=True, name="Past pred."),
                 secondary_y=False)
     # Edit the layout
-    title_fig = '<b>COVID-19 Confirmed cases in France with prediction</b>' + \
-        '<br>LMST Deep Learning Model : ' + \
-        '<b>3 days</b> prediction from <b>last 10 days</b>' + \
-        '<br>Trained until ' + str_date_mdl
+    title_fig = '<b>COVID-19 Confirmed cases in France</b>' + \
+        '<br>Prediction: LSTM Deep Learning Model (v. ' + \
+            str_date_mdl + ')' + \
+        '<br>next <b>3 days</b> with <b>last 10 days</b>'
+        
     fig.update_layout(title=title_fig, yaxis_title='nb <b>Total</b> cases')
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
 
@@ -1061,20 +1062,20 @@ def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
                                         visible=False))
 
     annot_conf=[dict( \
-        text="France : <b>Confirmed</b> cases (Sum during last 14 days before " + \
+        text="France : <b>Confirmed</b> cases (Total for 14 days before " + \
         f"{str_date_last})", 
                     x=0, xref="paper", y=1, yref="paper",
                                 align="left", showarrow=False,
                     bgcolor="#FFFFFF")]
 
     annot_test=[dict( \
-        text="France : <b>Tested</b> cases (Sum during last 14 days before " + \
+        text="France : <b>Tested</b> cases (Total for 14 days before " + \
         f"{str_date_last})", x=0, xref="paper", y=1, yref="paper",
                                 align="left", showarrow=False,
                     bgcolor="#FFFFFF")]
 
     annot_r0=[dict( \
-        text="France : <b>Rt</b> estimated on last 14 days before " + \
+        text="France : <b>Rt</b> estimated for 14 days before " + \
         f"{str_date_last})", x=0, xref="paper", y=1, yref="paper",
                                 align="left", showarrow=False,
                     bgcolor="#FFFFFF")]
@@ -1161,14 +1162,26 @@ def create_fig_rt_dep(dep_curr, df_code_dep,pt_fr_test_last, df_dep_r0):
                             line=dict(color="red", dash='dash'),
                             hoverinfo="skip"))
 
-    subtitle_curr = "For last 14 days : " + \
-        "Rt=<b>{:.2f}</b>".format(df_dep_r0[dep_num_curr][-1]) + \
-                    " with {} confirmed cases ".format(pt_fr_test_last.loc[ \
-                    pt_fr_test_last.dep == dep_num_curr, "p"].values[0])
 
-    fig.update_layout( \
-        title="<b>{}</b> : Estimated Reproduction Nb.<br>( until {} )".format( \
-            dep_curr, df_dep_r0['date'].max()) + '<br>' + subtitle_curr,
+    fig.add_annotation(
+                x=0,
+                y=-0.18,
+                text="<i>(Click on Map to Update this Curve)</i>")
+    fig.update_annotations(dict(
+                xref="paper",
+                yref="paper",
+                showarrow=False
+    ))
+
+    subtitle_curr = "Reproduction nb. Rt: " + \
+                    "<b>{:.2f}</b> ".format(df_dep_r0[dep_num_curr][-1]) + \
+                    '({})<br>'.format(df_dep_r0['date'].max())  + \
+                    "Confirmed cases: <b>{}</b>".format(pt_fr_test_last.loc[ \
+                    pt_fr_test_last.dep == dep_num_curr, "p"].values[0]) + \
+                        " for 14 days"
+
+    fig.update_layout(title="<b>{}</b> : ".format(dep_curr) + '<br>' + \
+        subtitle_curr,
         showlegend=False,
         font=dict(
             size=12,
@@ -1237,9 +1250,38 @@ def startup_layout():
         'overflowX': 'scroll'
         }
     }
+    markdown_info = '''
+    ##### Information
 
+    **About Model**  
+    The model is a simple LSTM Deep Learning Tensorflow model.  
+    It can estimate actual total confirmed cases number in France for next days by time-series forecast.  
+    It use last 10 days period in the past to estimate the next 3 days in the future.  
+    Because of lack of data, it has been trained with only 70 past periods and validated on only 4 periods!  
+      
+    Input Features are daily data for last 10 days:
+    - Min/Max Temperatures
+    - Min/Max Humidities
+    - Comfirmed cases
+    - Test cases
+    - Day of the week
+
+    The predictions are under-estimated because the evolution is big during last days.  
+    The model will learn from this current changing period in few weeks, and it will be better.  
+    If new data is available, and at each call, model predict confirmed cases for 3 next days.  
+    ...  
+    More info in my github below.  
+
+    **GitHub**: https://github.com/jeugregg/coronavirusModel
+    
+    **DATA**: 
+    - Tested / Confirmed cases: https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19
+    - Météo France : https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
+
+    '''
     return html.Div(children=[
-        html.H1(children='COVID-19 Dashboard in France : Model & Dataviz'),
+        html.H1(children='COVID-19 in France Dashboard: ' + \
+            'Datavisualization & Model'),
         html.Div(children=html.Button('Update Data', id='update-data', 
         n_clicks=0), style={'display': 'inline-block', 'margin-right': 10}),
         html.Div(children=dcc.Loading(
@@ -1248,19 +1290,19 @@ def startup_layout():
             children=html.Div(id="loading-output-1")), 
             style={'display': 'inline-block', 'margin-right': 10}),
             
-        html.Div(children=html.A(children="By G.LANG, Data Scientist Freelance",
+        html.Div(children=html.A(
+            children="By Gregory LANG, Data Scientist Freelance",
             href="http://greg.coolplace.fr/data-scientist-freelance", 
             target="_blank"), style={'display': 'inline-block'}),
 
         dcc.Tabs(id='tabs-example', value='tab-1', children=[
-            dcc.Tab(label='Confirmed Cases', value='tab-1', children=[
+            dcc.Tab(label='Evolution & Model', value='tab-1', children=[
             dcc.Graph(id='covid-pos-graph',
             figure=create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, 
                 str_date_mdl), style={'margin-top': 10})
             ]),
-            dcc.Tab(label='Rt Map', value='tab-2', children=[
-                #dcc.Graph(id='covid-rt-graph',
-            #figure=create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last))
+            dcc.Tab(label='Maps', 
+                value='tab-2', children=[
                 html.Div(dcc.Graph(id='covid-rt-map',
             figure=create_fig_map(pt_fr_test_last, dep_fr, str_date_last), 
                 ), style={'width': '59%', 'display': 'inline-block', 
@@ -1275,7 +1317,8 @@ def startup_layout():
         html.Div(id='predicted-value', style={'display': 'none'},
             children=jsonifed_pred(df_plot_pred)),
         html.Div(id='predicted-value-all', style={'display': 'none'},
-            children=jsonifed_pred(df_plot_pred_all))
+            children=jsonifed_pred(df_plot_pred_all)),
+        html.Div(id='info', children=dcc.Markdown(children=markdown_info))
         ])
 
 app.layout = startup_layout
