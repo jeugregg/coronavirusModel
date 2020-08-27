@@ -890,37 +890,39 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     # Create and style traces
+    # new cases
+    fig.add_trace(go.Bar(x=df_plot["date"].astype(np.datetime64), 
+                        y=df_plot["pos"], 
+                        name="Daily (Actual)"), 
+                secondary_y=True)
     # total
     fig.add_trace(go.Scatter(x=df_plot["date"].astype(np.datetime64), 
                             y=df_plot["nb_cases"],
                         mode='lines+markers',
                         line_shape='linear',
-                        connectgaps=True, name="Total"),
+                        connectgaps=True, name="Total (Actual)"),
+                secondary_y=False)
+    
+    fig.add_trace(go.Scatter(x=df_plot_pred_all["date"].astype(np.datetime64), 
+                            y=df_plot_pred_all["nb_cases"],
+                        mode='lines',
+                        line_shape='linear',
+                        connectgaps=True, name="Total (Estim.)"),
                 secondary_y=False)
 
     fig.add_trace(go.Scatter(x=df_plot_pred["date"].astype(np.datetime64), 
                             y=df_plot_pred["nb_cases"],
                         mode='lines+markers',
                         line_shape='linear',
-                        connectgaps=True, name="Future pred."),
+                        connectgaps=True, name="Total (Estim. Future)"),
                 secondary_y=False)
-    # new cases
-    fig.add_trace(go.Bar(x=df_plot["date"].astype(np.datetime64), 
-                        y=df_plot["pos"], 
-                        name="Daily"), 
-                secondary_y=True)
+
 
     fig.add_trace(go.Bar(x=df_plot_pred["date"].astype(np.datetime64), 
                 y=df_plot_pred["pos"], 
-                name="Daily pred."), 
+                name="Daily (Estim. Future)"), 
                 secondary_y=True)
 
-    fig.add_trace(go.Scatter(x=df_plot_pred_all["date"].astype(np.datetime64), 
-                            y=df_plot_pred_all["nb_cases"],
-                        mode='lines',
-                        line_shape='linear',
-                        connectgaps=True, name="Past pred."),
-                secondary_y=False)
     # Edit the layout
     title_fig = '<b>COVID-19 Confirmed cases in France</b>' + \
         '<br>Prediction: LSTM Deep Learning Model (v. ' + \
@@ -929,9 +931,10 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
         
     fig.update_layout(title=title_fig, yaxis_title='nb <b>Total</b> cases')
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
+    fig.update_layout(height=600)
 
     fig.update_yaxes(title_text="nb <b>Daily</b> cases", 
-                    range=[0, 5000], secondary_y=True)
+                    range=[0, 10000], secondary_y=True)
 
     return fig
 
@@ -1251,30 +1254,41 @@ def startup_layout():
         }
     }
     markdown_info = '''
-    ##### Information
-
-    **About Model**  
+    ***Legend***  
+    `Daily (Actual)` : Actual daily number of confirmed cases in France for past days  
+    `Total (Actual)` : Actual total number of confirmed cases in France for past days  
+    `Total (Estim.)` : Estimated total number of confirmed cases in France for past days (by model)  
+    `Total (Estim. Future)` : Estimated total number of confirmed cases in France for future days (by model)  
+    `Daily (Estim. Future)` : Estimated daily number of confirmed cases in France for future days (by model)  
+    
+    ***About Model***  
+      
     The model is a simple LSTM Deep Learning Tensorflow model.  
-    It can estimate actual total confirmed cases number in France for next days by time-series forecast.  
-    It use last 10 days period in the past to estimate the next 3 days in the future.  
+      
+    It estimates the number of daily confirmed cases in France for next days by time-series forecast.  
+      
+    For that, the model takes a period of 10 days to estimate the next 3 days.  
+      
     Because of lack of data, it has been trained with only 70 past periods and validated on only 4 periods!  
       
-    Input Features are daily data for last 10 days:
+    Input Features are daily data for:
     - Min/Max Temperatures
     - Min/Max Humidities
-    - Comfirmed cases
+    - Confirmed cases
     - Test cases
     - Day of the week
 
     The predictions are under-estimated because the evolution is big during last days.  
+      
     The model will learn from this current changing period in few weeks, and it will be better.  
-    If new data is available, and at each call, model predict confirmed cases for 3 next days.  
-    ...  
+      
+    If new data is available, the model is predicting daily confirmed cases for next days.  
+      
     More info in my github below.  
-
-    **GitHub**: https://github.com/jeugregg/coronavirusModel
-    
-    **DATA**: 
+      
+    ***GitHub***: https://github.com/jeugregg/coronavirusModel
+      
+    ***DATA sources***: 
     - Tested / Confirmed cases: https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19
     - Météo France : https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
 
