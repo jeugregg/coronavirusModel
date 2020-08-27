@@ -4,7 +4,7 @@ This project is about COVID-19 evolution.
 
 I have developed 3 main python projects.  
 
-1) A very complete notebook [coronavirus-visualization-modeling.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/coronavirus-visualization-modeling.ipynb) shows the evolution of COVID-19 virus all over the world.  
+**1) A very complete notebook [coronavirus-visualization-modeling.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/coronavirus-visualization-modeling.ipynb) shows the evolution of COVID-19 virus all over the world.**  
 
 Published version is available on kaggle : https://www.kaggle.com/jeugregg/coronavirus-visualization-modeling  
 
@@ -21,7 +21,7 @@ The world data source is https://github.com/CSSEGISandData/COVID-19 provided by 
 
 South Korea areas data are retrieved with scrapy from KCDC Press Release articles at https://www.cdc.go.kr/board/board.es?mid=a30402000000&bid=0030.  
 
-2) App Dashboard with evolution prediction by Deep Learning: [app.py](https://github.com/jeugregg/coronavirusModel/blob/master/app.py)  
+**2) App Dashboard with evolution prediction by Deep Learning: [app.py](https://github.com/jeugregg/coronavirusModel/blob/master/app.py)**  
 
 This app is online here : http://app-covid-visu.coolplace.fr/  
 
@@ -64,7 +64,7 @@ DATA Sources :
 - Meteo France : https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
 
 
-3) Deep Learning for read Table in HTML : [readTableWithBERT.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/readTableWithBERT.ipynb)  
+**3) Deep Learning for read Table in HTML : [readTableWithBERT.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/readTableWithBERT.ipynb)**  
 Additional file : [read Table into HTML BERT model resume training.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/read%20Table%20into%20HTML%20BERT%20model%20resume%20training.ipynb)  
 I stop this project because I just tried transfert learning from a BERT style model : distilbert and I had bad results.  
 
