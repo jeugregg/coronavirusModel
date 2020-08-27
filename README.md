@@ -1,12 +1,12 @@
-# coronavirusModel
- Coronavirus Visualization & Modeling  
+# Coronavirus Visualization & Modeling  
 
 This project is about COVID-19 evolution.  
 
 I have developed 3 main python projects.  
 
-1) A very complete notebook : [coronavirus-visualization-modeling.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/coronavirus-visualization-modeling.ipynb)  
-This notebook shows the evolution of COVID-19 virus all over the world.  
+1) A very complete notebook [coronavirus-visualization-modeling.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/coronavirus-visualization-modeling.ipynb) shows the evolution of COVID-19 virus all over the world.  
+
+Published version is available on kaggle : https://www.kaggle.com/jeugregg/coronavirus-visualization-modeling  
 
 It also focuses on South Korea and France areas.  
 
@@ -15,9 +15,7 @@ Also, more globally, at country-level for all other countries in the World.
  
 Also, this notebook scraps data from French and Korean Health official websites.  
 If you discover the code, you can see how.  
-Korean & French data are updated daily.  
-
-Published version is available on kaggle : https://www.kaggle.com/jeugregg/coronavirus-visualization-modeling  
+Korean & French data are updated daily.   
 
 The world data source is https://github.com/CSSEGISandData/COVID-19 provided by JHU CSSE  
 
@@ -51,7 +49,7 @@ If new data is available, the model is predicting daily confirmed cases for next
 The model is hosted on AWS EC2 Cluster (t2.micro).  
 
 Because memory needed to do prediction is too high for t2.micro instance, I use AWS Lambda API call only for this purpose.  
-I have implemented thanks to [serverless framework](https://www.serverless.com/).  
+I have implemented it thanks to [serverless framework](https://www.serverless.com/).  
 
 But, the tensorflow model have to be converted in Tensorflow LITE to respect storage limit for AWS lambda function.  
 For the conversion, LSTM neural network needs special format.  
