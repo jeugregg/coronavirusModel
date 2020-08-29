@@ -6,6 +6,8 @@ COPY data_meteo_fr.json /app/
 COPY df_feat_fr.csv /app/
 COPY df_plot_pred.csv /app/
 COPY df_plot_pred_all.csv /app/
+COPY df_dep_r0.csv /app/
+COPY pt_fr_test_last.csv /app/
 COPY sources/departements-avec-outre-mer_simple.json /app/sources/
 RUN pip install -r requirements_light.txt
 EXPOSE 80
