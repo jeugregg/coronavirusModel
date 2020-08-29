@@ -480,6 +480,18 @@ def get_data_rt(df_gouv_fr_raw):
 
     return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep
 
+def load_data_rt():
+    '''
+    Load from disk pre-computed data for RT map
+    output : df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep DataFrame
+    '''
+    dep_fr, df_code_dep = get_geo_fr()
+    df_dep_r0 = load_df_dep_r0()
+    pt_fr_test_last = load_pt_fr_test_last()
+    return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep
+
+
+
 def get_data_gouv_fr():
     '''
     Get from Gouv  SFP page data cases in France 
@@ -925,10 +937,9 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
 
     # Edit the layout
     title_fig = '<b>COVID-19 Confirmed cases in France</b>' + \
-        '<br>Prediction: LSTM Deep Learning Model (v. ' + \
-            str_date_mdl + ')' + \
-        '<br>next <b>3 days</b> with <b>last 10 days</b>'
-        
+        '<br>Model trained until <b>' + str_date_mdl + '</b>' + \
+        '<br>predicts next 3 days with last 10 days until <b>' + \
+        df_plot_pred["date"].max() + '</b>'
     fig.update_layout(title=title_fig, yaxis_title='nb <b>Total</b> cases')
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
     fig.update_layout(height=600)
@@ -1231,7 +1242,7 @@ def startup_layout():
     # load from disk
     df_feat_fr = load_data_pos()
     df_plot = update_pos(df_feat_fr)
-
+    str_date_last = df_plot.date.max()
     # predict 3 future days
     flag_pred_disk = not(flag_update)
     df_plot_pred = update_pred_pos(df_feat_fr, flag_pred_disk)
@@ -1240,11 +1251,16 @@ def startup_layout():
     # last date of training
     str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
 
+
     # rt plots
-    df_gouv_fr_raw = load_data_gouv()
-    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
-        get_data_rt(df_gouv_fr_raw)
-    str_date_last = df_plot.date.max()
+    if flag_update:
+        df_gouv_fr_raw = load_data_gouv()
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+            get_data_rt(df_gouv_fr_raw)
+    else:
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+            load_data_rt()
+    
 
     # for debug
     styles = {
@@ -1301,7 +1317,7 @@ def startup_layout():
         html.Div(children=dcc.Loading(
             id="loading-fig-pos",
             type="default",
-            children=html.Div(id="loading-output-1")), 
+            children=html.Div(id="loading-output-1", children='Updating...')), 
             style={'display': 'inline-block', 'margin-right': 10}),
             
         html.Div(children=html.A(
@@ -1341,12 +1357,47 @@ app.layout = startup_layout
 # button update data
 @app.callback(
     [dash.dependencies.Output('loading-output-1', 'children') , 
-    dash.dependencies.Output('covid-pos-graph', 'figure')],
+    dash.dependencies.Output('covid-pos-graph', 'figure'),
+    dash.dependencies.Output('covid-rt-map', 'figure')],
     [dash.dependencies.Input('update-data', 'n_clicks')],
     [dash.dependencies.State('predicted-value', 'children'),
     dash.dependencies.State('predicted-value-all', 'children')])
 def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
+    
+    # update 
     flag_update = check_update()
+    if flag_update:
+        get_data_pos()
+        
+    # load from disk
+    df_feat_fr = load_data_pos()
+    df_plot = update_pos(df_feat_fr)
+    str_date_last = df_plot.date.max()
+
+    # predict 3 future days
+    flag_pred_disk = not(flag_update)
+    df_plot_pred = update_pred_pos(df_feat_fr, flag_pred_disk)
+    # predict all past days
+    df_plot_pred_all = update_pred_pos_all(df_feat_fr, flag_pred_disk)
+    # last date of training
+    str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
+
+    '''# rt plots
+    df_gouv_fr_raw = load_data_gouv()
+    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+        get_data_rt(df_gouv_fr_raw)'''
+
+    # rt plots
+    if flag_update:
+        df_gouv_fr_raw = load_data_gouv()
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+            get_data_rt(df_gouv_fr_raw)
+    else:
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+            load_data_rt()
+    
+
+    '''flag_update = check_update()
     if flag_update:
         get_data_pos()
     df_feat_fr = load_data_pos()
@@ -1362,9 +1413,13 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
         df_plot_pred = pd.read_json(jsonified_pred, orient='split')
         df_plot_pred_all = pd.read_json(jsonified_pred_all, orient='split')
     # last date of training
-    str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
-    return conv_dt_2_str(get_file_date(PATH_DF_FEAT_FR)), \
-        create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl)
+    str_date_mdl =  df_feat_fr.iloc[train_split]["date"]'''
+
+    str_data_date = "last data available: " + df_feat_fr["date"].max()
+    # conv_dt_2_str(get_file_date(PATH_DF_FEAT_FR))
+    return str_data_date, \
+        create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl), \
+        create_fig_map(pt_fr_test_last, dep_fr, str_date_last)
 
 # click on map
 @app.callback(
