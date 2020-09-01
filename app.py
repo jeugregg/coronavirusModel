@@ -3,8 +3,9 @@
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
 
-PREDICT = True
-MODEL_TFLITE = True
+MODE_FORCE_UPDATE = False # default = False 
+PREDICT = True # default = True 
+MODEL_TFLITE = True # default = True 
 
 import flask
 import dash
@@ -60,16 +61,19 @@ URL_CSV_GOUV_FR = 'https://www.data.gouv.fr/' + \
 URL_GEOJSON_DEP_FR = 'sources/departements-avec-outre-mer_simple.json'
 NB_POS_DATE_MIN_DF_FEAT = 140227 # on 12/05/2020
 date_format = "%Y-%m-%d"
-# model parameters
-train_split = 83
-past_history = 10 # days used to predict next values in future
-future_target = 3 # predict 3 days later
-STEP = 1
-NB_DAY_PLOT = 60
 
-# model TLITE AWS LAMBDA
+# model parameters
+TRAIN_SPLIT = 93
+PAST_HISTORY= 14 # days used to predict next values in future
+FUTURE_TARGET = 7 # predict 3 days later
+STEP = 1
+# for plot
+NB_DAY_PLOT = FUTURE_TARGET * 9
+
+# model deep learning TLITE AWS LAMBDA
 URL_PREDICT = 'https://yl0910jrga.execute-api.us-east-2.amazonaws.com/dev/infer'
-# Rt model
+
+# Rt simple model
 nb_days_CV = 14
 
 ###################
@@ -533,20 +537,37 @@ def get_data_pos():
                         columns=["dep"], aggfunc=np.sum) 
     pt_fr_test["date"] = pt_fr_test.index
 
-    # save data
+    # age (new feature)
+    # date / dep age pos test
+    # =>  date / pos mean(age) 
+    df_gouv_fr_raw_0 = df_gouv_fr_raw.copy()
+    df_gouv_fr_raw_0["prod_p_age"] = \
+        df_gouv_fr_raw_0["p"] * df_gouv_fr_raw_0["cl_age90"]
+    df_gouv_fr_raw_0["prod_t_age"] = \
+        df_gouv_fr_raw_0["t"] * df_gouv_fr_raw_0["cl_age90"]
+    ser_p_age = df_gouv_fr_raw_0.groupby("jour") \
+        ["prod_p_age"].sum() / df_gouv_fr_raw_0.groupby("jour")["p"].sum()
+    df_age = pd.DataFrame(index=ser_p_age.index, columns=["pos_mean_age"], 
+                        data=ser_p_age.values)
+    ser_t_age = df_gouv_fr_raw_0.groupby("jour") \
+        ["prod_t_age"].sum() / df_gouv_fr_raw_0.groupby("jour")["t"].sum()
+    df_age["test_mean_age"] = ser_t_age
+
+    # prepare data positive
     df_pos_fr = pt_fr_test["p"].copy()
     df_pos_fr.index = pt_fr_test["date"].index
-    #df_pos_fr["date"] = df_pos_fr.index
+    df_pos_fr["date"] = df_pos_fr.index
+    df_pos_fr["age"] = df_age["pos_mean_age"].copy()
+    # save data pos
     df_pos_fr.to_csv(PATH_DF_POS_FR, index=False)
 
+    # prepare data tested
     df_test_fr = pt_fr_test["t"].copy()
     df_test_fr.index = pt_fr_test["date"].index
-    #df_test_fr["date"] = df_test_fr.index
+    df_test_fr["date"] = df_test_fr.index
+    df_test_fr["age"] = df_age["test_mean_age"].copy()
+    # save data tested
     df_test_fr.to_csv(PATH_DF_TEST_FR, index=False)
-
-    # if no prediction, stop here
-    #if PREDICT == False:
-    #    return
     
     # meteo
     if os.path.isfile(PATH_JSON_METEO_FR):
@@ -642,6 +663,9 @@ def get_data_pos():
         df_pos_fr["pos"] += df_pos_fr[dep_curr]
 
     df_feat_fr["pos"] = df_pos_fr["pos"].copy()
+    
+    # add age positive
+    df_feat_fr["age_pos"] = df_pos_fr["age"].copy()
 
     # add tested cases
     df_test_fr["test"] = 0
@@ -654,6 +678,9 @@ def get_data_pos():
         df_test_fr["test"] += df_test_fr[dep_curr]
         
     df_feat_fr["test"] = df_test_fr["test"].copy()
+    
+    # add age tested
+    df_feat_fr["age_test"] = df_test_fr["age"].copy()
 
     # add num days
     df_feat_fr['day_num'] = \
@@ -666,25 +693,21 @@ def get_data_pos():
     # save for future uses
     df_feat_fr.to_csv(PATH_DF_FEAT_FR, index=False)
 
- # FOR AWS Lambda predict
+# FOR AWS Lambda predict
 def prepare_to_lambda(dataset):
     '''
     Prepare data input model to be used by lambda: 
     
     for prediction all past days
     '''
-    list_list_x = [] # size : 17*10*7=1190 / df_feat_fr size : 98*6=864
-    K_days = 0
-    # prepare data : very last days
-    nb_max = int((NB_DAY_PLOT)/future_target)
-    for I in range(nb_max, 0, -1):
-        I_start = I * future_target - past_history
-        if I_start < 0:
-            break
-        I_end = I * future_target
-        #print(f"[{I_start} - {I_end}]")
+    list_list_x = []
+    nb_max = math.ceil((NB_DAY_PLOT)/FUTURE_TARGET)
+    I_start_pred = TRAIN_SPLIT - nb_max*FUTURE_TARGET
+    for I in range(nb_max):
+        I_start = I_start_pred + I * FUTURE_TARGET - PAST_HISTORY
+        I_end =   I_start_pred + I * FUTURE_TARGET
+        print(f"[{I_start} - {I_end}]")
         list_list_x.append(np.array([dataset[I_start:I_end, :]]).tolist())
-        K_days += future_target
         
     json_list_list_x = json.dumps(list_list_x)
     return json_list_list_x
@@ -716,7 +739,7 @@ def prepare_to_lambda_future(dataset):
     
     for prediction of very last days
     '''
-    return json.dumps([[dataset[-past_history:,:].tolist()]])
+    return json.dumps([[dataset[-PAST_HISTORY:,:].tolist()]])
 
 # FOR data to plot
 def load_data_pos():
@@ -767,11 +790,12 @@ def update_pred_pos(df_feat_fr, from_disk=False):
 
     # prepare features
     features = df_feat_fr.copy().filter(items=['T_min', 'T_max', 'H_min',
-                                            'H_max', 'pos', 'test', 'day_num'])
+                                           'H_max', 'pos', 'test', 'day_num',
+                                           'age_pos', 'age_test'])
     # prepare dataset 
     dataset = features.values
-    data_mean = dataset[:train_split].mean(axis=0)
-    data_std = dataset[:train_split].std(axis=0)
+    data_mean = dataset[:TRAIN_SPLIT].mean(axis=0)
+    data_std = dataset[:TRAIN_SPLIT].std(axis=0)
     dataset = (dataset-data_mean)/data_std
 
     # predict next days
@@ -788,7 +812,7 @@ def update_pred_pos(df_feat_fr, from_disk=False):
             return df_plot_pred            
     else:
         # prepare data : very last days
-        x_multi = np.array([dataset[-past_history:,:]]) 
+        x_multi = np.array([dataset[-PAST_HISTORY:,:]]) 
         # load model
         multi_step_model = tf.keras.models.load_model(PATH_MDL_MULTI_STEP)
         y_multi_pred = multi_step_model.predict(x_multi)
@@ -797,13 +821,15 @@ def update_pred_pos(df_feat_fr, from_disk=False):
     y_pos_pred = y_multi_pred * data_std[4] + data_mean[4]
     # pos pred next 3 days from last day : date, pos, total (sum)
     str_date_pred_0 = df_feat_fr.date.max()
-    str_date_pred_1 = add_days(str_date_pred_0, 3)
+    str_date_pred_1 = add_days(str_date_pred_0, FUTURE_TARGET)
     list_dates_pred = generate_list_dates(str_date_pred_0, str_date_pred_1)
     # figure 
     df_plot_pred = pd.DataFrame(index=list_dates_pred, columns=["date"], 
                         data=list_dates_pred)
 
     df_plot_pred["pos"] = y_pos_pred[0].astype(int)
+
+
     arr_nb_pred = df_plot_pred["pos"].cumsum().values
     df_plot_pred["nb_cases"] = df_feat_fr["nb_cases"].max() + arr_nb_pred
 
@@ -823,11 +849,12 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
 
     # prepare features
     features = df_feat_fr.copy().filter(items=['T_min', 'T_max', 'H_min',
-                                            'H_max', 'pos', 'test', 'day_num'])
+                                           'H_max', 'pos', 'test', 'day_num',
+                                           'age_pos', 'age_test'])
     # prepare dataset 
     dataset = features.values
-    data_mean = dataset[:train_split].mean(axis=0)
-    data_std = dataset[:train_split].std(axis=0)
+    data_mean = dataset[:TRAIN_SPLIT].mean(axis=0)
+    data_std = dataset[:TRAIN_SPLIT].std(axis=0)
     dataset = (dataset-data_mean)/data_std
 
     # predict
@@ -850,14 +877,14 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
         list_x = []
         #K_days = 0
         # prepare data : very last days
-        nb_max = int((NB_DAY_PLOT)/future_target)
+        nb_max = int((NB_DAY_PLOT)/FUTURE_TARGET)
         for I in range(nb_max, 0, -1):
-            I_start = I * future_target - past_history
+            I_start = I * FUTURE_TARGET - PAST_HISTORY
             if I_start < 0:
                 break
-            I_end = I * future_target
+            I_end = I * FUTURE_TARGET
             list_x.append(np.array([dataset[I_start:I_end, :]]))
-            #K_days += future_target
+            #K_days += FUTURE_TARGET
 
         # model prediction
         for I, x_multi in enumerate(list_x):
@@ -882,10 +909,19 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
     # create df output
     df_plot_pred_all = pd.DataFrame(index=list_dates_pred, columns=["date"], 
                        data=list_dates_pred)
+    # daily
     df_plot_pred_all["pos"] = y_pos_pred[0].astype(int)
-    arr_nb_pred = df_plot_pred_all["pos"].cumsum().values
-    df_plot_pred_all["nb_cases"] = df_feat_fr[df_feat_fr["date"] == \
-        df_plot_pred_all["date"].min()]["nb_cases"][0] + arr_nb_pred
+
+    # Total : cumulate sum 
+    list_nb_cases =[]
+    str_date_nb_0 = str_date_pred_0
+    for I in range(0, df_plot_pred_all["pos"].shape[0], FUTURE_TARGET):
+        str_date_nb_0 = add_days(str_date_pred_0, I)
+        nb_0 = df_feat_fr[df_feat_fr["date"] == str_date_nb_0]["nb_cases"][0]
+        arr_nb = nb_0 + \
+            df_plot_pred_all.iloc[I:I+FUTURE_TARGET]["pos"].cumsum().values
+        list_nb_cases = list_nb_cases + arr_nb.tolist()
+    df_plot_pred_all["nb_cases"] = list_nb_cases
 
     # save for future pred
     df_plot_pred_all.to_csv(PATH_DF_PLOT_PRED_ALL, index=False)
@@ -905,40 +941,41 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
     # new cases
     fig.add_trace(go.Bar(x=df_plot["date"].astype(np.datetime64), 
                         y=df_plot["pos"], 
-                        name="Daily (Actual)"), 
+                        name="Daily", opacity=0.5), 
                 secondary_y=True)
     # total
     fig.add_trace(go.Scatter(x=df_plot["date"].astype(np.datetime64), 
                             y=df_plot["nb_cases"],
                         mode='lines+markers',
                         line_shape='linear',
-                        connectgaps=True, name="Total (Actual)"),
+                        connectgaps=True, name="Total"),
                 secondary_y=False)
-    
+
     fig.add_trace(go.Scatter(x=df_plot_pred_all["date"].astype(np.datetime64), 
                             y=df_plot_pred_all["nb_cases"],
-                        mode='lines',
-                        line_shape='linear',
-                        connectgaps=True, name="Total (Estim.)"),
+                        mode='lines+markers',
+                        line_shape='hv',
+                        connectgaps=True, name="Total (estim.)"),
                 secondary_y=False)
 
     fig.add_trace(go.Scatter(x=df_plot_pred["date"].astype(np.datetime64), 
                             y=df_plot_pred["nb_cases"],
                         mode='lines+markers',
-                        line_shape='linear',
-                        connectgaps=True, name="Total (Estim. Future)"),
+                        line_shape='hv',
+                        connectgaps=True, name="Total (future estim.)"),
                 secondary_y=False)
 
 
     fig.add_trace(go.Bar(x=df_plot_pred["date"].astype(np.datetime64), 
                 y=df_plot_pred["pos"], 
-                name="Daily (Estim. Future)"), 
+                name="Daily (future estim.)", opacity=0.5), 
                 secondary_y=True)
 
     # Edit the layout
     title_fig = '<b>COVID-19 Confirmed cases in France</b>' + \
         '<br>Model trained until <b>' + str_date_mdl + '</b>' + \
-        '<br>predicts next 3 days with last 10 days until <b>' + \
+        '<br>predicts next {} days with last {} days until <b>' \
+        .format(FUTURE_TARGET, PAST_HISTORY) + \
         df_plot_pred["date"].max() + '</b>'
     fig.update_layout(title=title_fig, yaxis_title='nb <b>Total</b> cases')
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
@@ -1235,7 +1272,10 @@ def startup_layout():
     #dtime_now  = datetime.datetime.now() - time_file_df_feat_date
 
     # update 
-    flag_update = check_update()
+    if MODE_FORCE_UPDATE == True:
+        flag_update = True
+    else:
+        flag_update = check_update()
     if flag_update:
         get_data_pos()
         
@@ -1249,7 +1289,7 @@ def startup_layout():
     # predict all past days
     df_plot_pred_all = update_pred_pos_all(df_feat_fr, flag_pred_disk)
     # last date of training
-    str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
+    str_date_mdl =  df_feat_fr.iloc[TRAIN_SPLIT]["date"]
 
 
     # rt plots
@@ -1261,19 +1301,12 @@ def startup_layout():
         df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
             load_data_rt()
     
-
-    # for debug
-    styles = {
-    'pre': {
-        'border': 'thin lightgrey solid',
-        'overflowX': 'scroll'
-        }
-    }
+    # informations
     markdown_info = '''
     ***Legend***  
-    `Daily (Actual)` : Actual daily number of confirmed cases in France for past days  
-    `Total (Actual)` : Actual total number of confirmed cases in France for past days  
-    `Total (Estim.)` : Estimated total number of confirmed cases in France for past days (by model)  
+    `Daily`                 : Actual daily number of confirmed cases in France for past days  
+    `Total`                 : Actual total number of confirmed cases in France for past days  
+    `Total (Estim.)`        : Estimated total number of confirmed cases in France for past days (by model)  
     `Total (Estim. Future)` : Estimated total number of confirmed cases in France for future days (by model)  
     `Daily (Estim. Future)` : Estimated daily number of confirmed cases in France for future days (by model)  
     
@@ -1283,16 +1316,18 @@ def startup_layout():
       
     It estimates the number of daily confirmed cases in France for next days by time-series forecast.  
       
-    For that, the model takes a period of 10 days to estimate the next 3 days.  
+    For that, the model takes a period of 14 days to estimate the next 7 days.  
       
-    Because of lack of data, it has been trained with only 70 past periods and validated on only 4 periods!  
+    Because of lack of data, it has been trained with only few past periods and validated on only very few periods!  
       
     Input Features are daily data for:
     - Min/Max Temperatures
     - Min/Max Humidities
     - Confirmed cases
-    - Test cases
+    - Tested cases
     - Day of the week
+    - Mean Age of Tested cases
+    - Mean Age of Confirmed cases
 
     The predictions are under-estimated because the evolution is big during last days.  
       
@@ -1380,7 +1415,7 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
     # predict all past days
     df_plot_pred_all = update_pred_pos_all(df_feat_fr, flag_pred_disk)
     # last date of training
-    str_date_mdl =  df_feat_fr.iloc[train_split]["date"]
+    str_date_mdl =  df_feat_fr.iloc[TRAIN_SPLIT]["date"]
 
     '''# rt plots
     df_gouv_fr_raw = load_data_gouv()
@@ -1396,25 +1431,6 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
         df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
             load_data_rt()
     
-
-    '''flag_update = check_update()
-    if flag_update:
-        get_data_pos()
-    df_feat_fr = load_data_pos()
-    df_plot = update_pos(df_feat_fr)
-    
-    if flag_update:
-        # model predicting
-        df_plot_pred = update_pred_pos(df_feat_fr)
-        df_plot_pred_all = update_pred_pos_all(df_feat_fr)
-    else:
-        # load from hidden div (no model predicting again)
-        print("loading prediction from hidden div...")
-        df_plot_pred = pd.read_json(jsonified_pred, orient='split')
-        df_plot_pred_all = pd.read_json(jsonified_pred_all, orient='split')
-    # last date of training
-    str_date_mdl =  df_feat_fr.iloc[train_split]["date"]'''
-
     str_data_date = "last data available: " + df_feat_fr["date"].max()
     # conv_dt_2_str(get_file_date(PATH_DF_FEAT_FR))
     return str_data_date, \

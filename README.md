@@ -32,8 +32,8 @@ It is developed in [Plotly Dash](https://plotly.com/dash/)
 You can see the model development notebook [ModelCovidTimeSeries.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/ModelCovidTimeSeries.ipynb)  
 
 The model estimates the number of daily confirmed cases in France for next days by time-series forecast.  
-For that, it takes a period of 10 days to estimate the next 3 days.  
-Because of lack of data, it has been trained with only 70 past periods and validated on only 4 periods!  
+For that, it takes a period of 14 days to estimate the next 7 days.  
+Because of lack of data, it has been trained with only few past periods and validated on only very few periods!  
 
 Input Features are daily data for:  
 - Min/Max Temperatures
@@ -41,6 +41,8 @@ Input Features are daily data for:
 - Confirmed cases
 - Test cases
 - Day of the week
+- Mean Age of Tested cases
+- Mean Age of Confirmed cases
 
 The predictions are under-estimated because the evolution is big during last days.  
 The model will learn from this current changing period in few weeks, so predictions must be better.  
@@ -73,13 +75,3 @@ I prefer adapting scrapy classical method every times table format changed (KCDC
 I used this github to train the model : [simpletransformers](https://github.com/ThilinaRajapakse/simpletransformers)  
 
 I think it is not the good model to do that.  
-
-
-
-
-
-
-
-
-
-
