@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 # Run this app with `python app.py` and
-# visit http://127.0.0.1:8050/ in your web browser.
+# visit http://0.0.0.0/ in your web browser.
 
+MODE_DEBUG = True
 MODE_FORCE_UPDATE = False # default = False 
 PREDICT = True # default = True 
 MODEL_TFLITE = True # default = True 
@@ -14,7 +15,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 if PREDICT:
-    if MODEL_TFLITE == False:
+    if not MODEL_TFLITE:
         import tensorflow as tf
 
 import pandas as pd
@@ -774,8 +775,8 @@ def update_pos(df_feat_fr):
     '''
     Update plot data positive cases France
     '''
-    # pos last 60 days : date, pos, total (sum)
-    str_date_0 = add_days(df_feat_fr.date.max(), -60)
+    # pos last NB_DAY_PLOT days : date, pos, total (sum)
+    str_date_0 = add_days(df_feat_fr.date.max(), -NB_DAY_PLOT)
     df_plot = df_feat_fr[df_feat_fr["date"] >= str_date_0].copy()
     return df_plot
 
@@ -783,7 +784,7 @@ def update_pred_pos(df_feat_fr, from_disk=False):
     '''
     Update prediction data positive cases France
     '''
-    if (PREDICT == False) | (from_disk == True):
+    if (not PREDICT) | from_disk:
         df_plot_pred = pd.read_csv(PATH_DF_PLOT_PRED)
         df_plot_pred.index = df_plot_pred["date"]
         return df_plot_pred
@@ -842,7 +843,7 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
     '''
     Update prediction data positive cases France for all days
     '''
-    if (PREDICT == False) | (from_disk == True):
+    if (not PREDICT) | from_disk:
         df_plot_pred_all = pd.read_csv(PATH_DF_PLOT_PRED_ALL)
         df_plot_pred_all.index = df_plot_pred_all["date"]
         return df_plot_pred_all
@@ -875,7 +876,7 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
         multi_step_model = tf.keras.models.load_model(PATH_MDL_MULTI_STEP)
 
         list_x = []
-        #K_days = 0
+
         # prepare data : very last days
         nb_max = int((NB_DAY_PLOT)/FUTURE_TARGET)
         for I in range(nb_max, 0, -1):
@@ -884,7 +885,6 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
                 break
             I_end = I * FUTURE_TARGET
             list_x.append(np.array([dataset[I_start:I_end, :]]))
-            #K_days += FUTURE_TARGET
 
         # model prediction
         for I, x_multi in enumerate(list_x):
@@ -1258,11 +1258,49 @@ def check_update():
         print("No new data available.")
     return flag_old
 
+def prepare_data_input(flag_update):
+    '''Prepare data input'''
+    if flag_update:
+        get_data_pos()
+    # load from disk
+    df_feat_fr = load_data_pos()
+    # last date of training
+    str_date_mdl =  df_feat_fr.iloc[TRAIN_SPLIT]["date"]
+    # date of last data
+    str_data_date = "last data available: " + df_feat_fr["date"].max()
+
+    return df_feat_fr, str_date_mdl, str_data_date
+
+def prepare_plot_data_pos(df_feat_fr, flag_update):
+    '''Prepare data for plot positive cases'''
+    # plot data for positive cases
+    df_plot = update_pos(df_feat_fr)
+    str_date_last = df_plot.date.max()
+    # predict 3 future days
+    flag_pred_disk = not(flag_update)
+    df_plot_pred = update_pred_pos(df_feat_fr, flag_pred_disk)
+    # predict all past days
+    df_plot_pred_all = update_pred_pos_all(df_feat_fr, flag_pred_disk)
+
+    return df_plot, df_plot_pred, df_plot_pred_all, str_date_last
+
+def prepare_plot_data_map(flag_update):
+    '''Prepare plot data for RT MAP'''
+    # plot data for MAPS
+    # rt plots
+    if flag_update:
+        df_gouv_fr_raw = load_data_gouv()
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+            get_data_rt(df_gouv_fr_raw)
+    else:
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+            load_data_rt()
+    return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep
 # APP DASH
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 server = flask.Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-
+app.title = "App Covid Visu"
 
 def startup_layout():
     '''
@@ -1272,26 +1310,43 @@ def startup_layout():
     #dtime_now  = datetime.datetime.now() - time_file_df_feat_date
 
     # update 
-    if MODE_FORCE_UPDATE == True:
+    if MODE_FORCE_UPDATE:
         flag_update = True
     else:
         flag_update = check_update()
+    
+    # prepare input data
+    df_feat_fr, str_date_mdl, str_data_date = prepare_data_input(flag_update)
+    '''#################
+    # load data input
     if flag_update:
         get_data_pos()
-        
     # load from disk
     df_feat_fr = load_data_pos()
+    # last date of training
+    str_date_mdl =  df_feat_fr.iloc[TRAIN_SPLIT]["date"]
+    # date of last data
+    str_data_date = "last data available: " + df_feat_fr["date"].max()'''
+    
+    # prepare plot data for positive cases
+    df_plot, df_plot_pred, df_plot_pred_all, str_date_last = \
+        prepare_plot_data_pos(df_feat_fr, flag_update)
+
+    '''##############################
+    # plot data for positive cases
     df_plot = update_pos(df_feat_fr)
     str_date_last = df_plot.date.max()
     # predict 3 future days
     flag_pred_disk = not(flag_update)
     df_plot_pred = update_pred_pos(df_feat_fr, flag_pred_disk)
     # predict all past days
-    df_plot_pred_all = update_pred_pos_all(df_feat_fr, flag_pred_disk)
-    # last date of training
-    str_date_mdl =  df_feat_fr.iloc[TRAIN_SPLIT]["date"]
-
-
+    df_plot_pred_all = update_pred_pos_all(df_feat_fr, flag_pred_disk)'''
+    # prepare plot data for MAPS
+    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+        prepare_plot_data_map(flag_update)
+    
+    '''####################
+    # plot data for MAPS
     # rt plots
     if flag_update:
         df_gouv_fr_raw = load_data_gouv()
@@ -1299,16 +1354,16 @@ def startup_layout():
             get_data_rt(df_gouv_fr_raw)
     else:
         df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
-            load_data_rt()
+            load_data_rt()'''
     
     # informations
     markdown_info = '''
     ***Legend***  
     `Daily`                 : Actual daily number of confirmed cases in France for past days  
     `Total`                 : Actual total number of confirmed cases in France for past days  
-    `Total (Estim.)`        : Estimated total number of confirmed cases in France for past days (by model)  
-    `Total (Estim. Future)` : Estimated total number of confirmed cases in France for future days (by model)  
-    `Daily (Estim. Future)` : Estimated daily number of confirmed cases in France for future days (by model)  
+    `Total (estim.)`        : Estimated total number of confirmed cases in France for past days (by model)  
+    `Total (future estim.)` : Estimated total number of confirmed cases in France for future days (by model)  
+    `Daily (future estim.)` : Estimated daily number of confirmed cases in France for future days (by model)  
     
     ***About Model***  
       
@@ -1399,29 +1454,40 @@ app.layout = startup_layout
     dash.dependencies.State('predicted-value-all', 'children')])
 def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
     
-    # update 
     flag_update = check_update()
+
+    # prepare data input
+    df_feat_fr, str_date_mdl, str_data_date = prepare_data_input(flag_update)
+    '''#################
+    # prepare data input
     if flag_update:
         get_data_pos()
-        
     # load from disk
     df_feat_fr = load_data_pos()
+    # last date of training
+    str_date_mdl =  df_feat_fr.iloc[TRAIN_SPLIT]["date"]
+    # date of last data
+    str_data_date = "last data available: " + df_feat_fr["date"].max()'''
+    
+    # plot data for positive cases
+    df_plot, df_plot_pred, df_plot_pred_all, str_date_last = \
+        prepare_plot_data_pos(df_feat_fr, flag_update)
+    
+    '''##############################
+    # plot data for positive cases
     df_plot = update_pos(df_feat_fr)
     str_date_last = df_plot.date.max()
-
     # predict 3 future days
     flag_pred_disk = not(flag_update)
     df_plot_pred = update_pred_pos(df_feat_fr, flag_pred_disk)
     # predict all past days
-    df_plot_pred_all = update_pred_pos_all(df_feat_fr, flag_pred_disk)
-    # last date of training
-    str_date_mdl =  df_feat_fr.iloc[TRAIN_SPLIT]["date"]
+    df_plot_pred_all = update_pred_pos_all(df_feat_fr, flag_pred_disk)'''
 
-    '''# rt plots
-    df_gouv_fr_raw = load_data_gouv()
+        # prepare plot data for MAPS
     df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
-        get_data_rt(df_gouv_fr_raw)'''
-
+        prepare_plot_data_map(flag_update)
+    '''####################
+    # plot data for MAPS
     # rt plots
     if flag_update:
         df_gouv_fr_raw = load_data_gouv()
@@ -1429,10 +1495,8 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
             get_data_rt(df_gouv_fr_raw)
     else:
         df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
-            load_data_rt()
+            load_data_rt()'''
     
-    str_data_date = "last data available: " + df_feat_fr["date"].max()
-    # conv_dt_2_str(get_file_date(PATH_DF_FEAT_FR))
     return str_data_date, \
         create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl), \
         create_fig_map(pt_fr_test_last, dep_fr, str_date_last)
@@ -1456,6 +1520,6 @@ def display_click_data(clickData):
 
 if __name__ == '__main__':
     #app.run_server(debug=True)
-    app.run_server(host='0.0.0.0', debug=False, port=80)
+    app.run_server(host='0.0.0.0', debug=MODE_DEBUG, port=80)
     app.config.suppress_callback_exceptions = True
 
