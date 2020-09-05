@@ -48,17 +48,20 @@ from my_helpers.data_maps import prepare_plot_data_map
 #date_format = "%Y-%m-%d"
 
 
-###################
 # HELPER FUNCTIONS
+
+def display_msg(my_message):
+    print("{} : {}".format(\
+        datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), my_message))
 
 def jsonifed_pred(df_plot_pred):
     '''Tranform DataFrame into json with date '''
     return df_plot_pred.to_json(date_format='iso', orient='split')
 
+# FIGURE FUNC
 
-
-# FOR FIGURE
 def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
+    display_msg("create_fig_pos...")
     # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -108,10 +111,11 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
 
     fig.update_yaxes(title_text="nb <b>Daily</b> cases", 
                     range=[0, 10000], secondary_y=True)
-
+    display_msg("create_fig_pos END")
     return fig
 
 def create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last):
+    display_msg("create_fig_rt...")
     list_num_dep = df_dep_r0.columns[1:].tolist()
     # path 975 & 977 & 978 doesn't exist in dep name data
     list_num_dep.remove('975')
@@ -186,17 +190,17 @@ def create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last):
             size=12,
         )
     )
-
+    display_msg("create_fig_rt END.")
     return fig
 
 def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
-    #####################
-    # Graph Rt map France
-    #
-    # data : 
-    # - dep_fr (geo json )
-    # - pt_fr_test_last
-
+    '''Graph Rt map France
+    
+     data : 
+     - dep_fr (geo json )
+     - pt_fr_test_last
+    '''
+    display_msg("create_fig_map...")
     lat_lon_fr =  {'lat':  46, 'lon': 2}
     zoom_fr = 4.25
     mapbox_args_fr = {'center': lat_lon_fr, 
@@ -302,17 +306,19 @@ def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
 
     fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
     fig.update_layout(annotations=annot_conf)
-
+    display_msg("create_fig_map END.")
     return fig
 
 def create_fig_rt_dep(dep_curr, df_code_dep,pt_fr_test_last, df_dep_r0):
-    ####################################
-    # Rt evolution plots for one departement
-    #
-    # data : 
-    # - df_dep_r0 (date,  date / dep. Rt)
-    # - df_code_dep (-, dep. code / dep name )
-    # - pt_fr_test_last (-, p / t / dep / code / name / p_0 / R0)
+    
+    '''Rt evolution plots for one departement
+    
+     data : 
+     - df_dep_r0 (date,  date / dep. Rt)
+     - df_code_dep (-, dep. code / dep name )
+     - pt_fr_test_last (-, p / t / dep / code / name / p_0 / R0)
+    '''
+    display_msg("create_fig_rt_dep ...")
     dep_num_curr = df_code_dep.loc[df_code_dep["name"] == dep_curr, 
                             "code"].values[0]
 
@@ -363,6 +369,7 @@ def create_fig_rt_dep(dep_curr, df_code_dep,pt_fr_test_last, df_dep_r0):
             size=12,
         )
     )
+    display_msg("create_fig_rt_dep END.")
     return fig
 
 # APP DASH
@@ -371,10 +378,14 @@ server = flask.Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 app.title = "App Covid Visu"
 
+
+
 def startup_layout():
     '''
     startup web page
     '''
+    display_msg("STARTUP...")
+    
     #time_file_df_feat_date = get_file_date(PATH_DF_FEAT_FR)
     #dtime_now  = datetime.datetime.now() - time_file_df_feat_date
 
@@ -438,6 +449,7 @@ def startup_layout():
     - Météo France : https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
 
     '''
+    display_msg("STARTUP END.")
     return html.Div(children=[
         html.H1(children='COVID-19 in France Dashboard: ' + \
             'Datavisualization & Model'),
@@ -492,7 +504,7 @@ app.layout = startup_layout
     [dash.dependencies.State('predicted-value', 'children'),
     dash.dependencies.State('predicted-value-all', 'children')])
 def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
-    
+    display_msg("UPDATE DATA BUTTON ...")
     flag_update = check_update()
 
     # prepare data input
@@ -505,7 +517,8 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
     # prepare plot data for MAPS
     df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
         prepare_plot_data_map(flag_update)
-    
+
+    display_msg("UPDATE DATA BUTTON END.")
     return str_data_date, \
         create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl), \
         create_fig_map(pt_fr_test_last, dep_fr, str_date_last)
@@ -515,6 +528,7 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
     Output('covid-rt-dep-graph', 'figure'),
     [Input('covid-rt-map', 'clickData')])
 def display_click_data(clickData):
+    display_msg("display_click_data ...")
     try:
         dep_curr = clickData["points"][0]["location"]
     except:
@@ -523,7 +537,7 @@ def display_click_data(clickData):
     # prepare plot data for MAPS
     df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
         prepare_plot_data_map(False)
-
+    display_msg("display_click_data END.")
     return create_fig_rt_dep(dep_curr, df_code_dep, 
                 pt_fr_test_last, df_dep_r0)
 
