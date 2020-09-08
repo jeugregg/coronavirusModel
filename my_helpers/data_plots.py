@@ -40,7 +40,8 @@ def get_data_gouv_fr():
     '''
     # patch 29/07/2020 : SSL error patch
     req = requests.get(URL_CSV_GOUV_FR).content
-    df_gouv_fr_raw = pd.read_csv(io.StringIO(req.decode('utf-8')), sep=";")
+    df_gouv_fr_raw = pd.read_csv(io.StringIO(req.decode('utf-8')), sep=";", 
+        low_memory=False) # patch dtype 2020-09-08
 
     # past treat data upper cases -> lower cases
     if "t" not in df_gouv_fr_raw.columns:

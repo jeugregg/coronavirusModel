@@ -458,7 +458,7 @@ def startup_layout():
         html.Div(children=dcc.Loading(
             id="loading-fig-pos",
             type="default",
-            children=html.Div(id="loading-output-1", children='Updating...')), 
+            children=html.Div(id="loading-output-1", children=str_data_date)), 
             style={'display': 'inline-block', 'margin-right': 10}),
             
         html.Div(children=html.A(
@@ -474,10 +474,10 @@ def startup_layout():
             ]),
             dcc.Tab(label='Maps', 
                 value='tab-2', children=[
-                html.Div(dcc.Graph(id='covid-rt-map',
+                html.Div(id="div-rt-map", children=dcc.Graph(id='covid-rt-map',
             figure=create_fig_map(pt_fr_test_last, dep_fr, str_date_last), 
                 ), style={'width': '59%', 'display': 'inline-block', 
-                    'margin-right': 1}),
+                    'margin-right': 1}, n_clicks=0),
                 html.Div(dcc.Graph(id='covid-rt-dep-graph',
             figure=create_fig_rt_dep("Paris", df_code_dep,pt_fr_test_last, 
                 df_dep_r0)), style={'width': '39%', 'display': 'inline-block', 
@@ -497,7 +497,7 @@ app.layout = startup_layout
 
 # button update data
 @app.callback(
-    [dash.dependencies.Output('loading-output-1', 'children') , 
+    [dash.dependencies.Output('loading-output-1', 'children'), 
     dash.dependencies.Output('covid-pos-graph', 'figure'),
     dash.dependencies.Output('covid-rt-map', 'figure')],
     [dash.dependencies.Input('update-data', 'n_clicks')],
@@ -505,6 +505,12 @@ app.layout = startup_layout
     dash.dependencies.State('predicted-value-all', 'children')])
 def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
     display_msg("UPDATE DATA BUTTON ...")
+    
+    if n_clicks < 1: # no update at loading
+        display_msg("Nothing to do")
+        display_msg("UPDATE DATA BUTTON END.")
+        return dash.no_update
+
     flag_update = check_update()
 
     # prepare data input
@@ -526,9 +532,16 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
 # click on map
 @app.callback(
     Output('covid-rt-dep-graph', 'figure'),
-    [Input('covid-rt-map', 'clickData')])
-def display_click_data(clickData):
+    [Input('covid-rt-map', 'clickData')], 
+    [dash.dependencies.State('div-rt-map', 'n_clicks')])
+def display_click_data(clickData, n_clicks):
     display_msg("display_click_data ...")
+
+    if n_clicks < 1:
+        display_msg("Nothing to do!")
+        display_msg("display_click_data END.")
+        return dash.no_update
+
     try:
         dep_curr = clickData["points"][0]["location"]
     except:
