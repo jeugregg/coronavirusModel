@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 
+''' App Covid Visu web app
+COVID-19 in France Dashboard: Datavisualization & Model
+Map of Reproduction number in France by "départements"
+A tensorflow deep leanring model try to estimate next 7 days confirmed cases in 
+France with last 14 days data available.
+'''
 # Run this app with `python app.py` and
 # visit http://0.0.0.0/ in your web browser.
 
@@ -195,10 +201,10 @@ def create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last):
 
 def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
     '''Graph Rt map France
-    
+    figure map of confirmed / testers and reproduction number by "départements"
      data : 
      - dep_fr (geo json )
-     - pt_fr_test_last
+     - pt_fr_test_last : pivot table : sum up last 14 days of confirmed cases
     '''
     display_msg("create_fig_map...")
     lat_lon_fr =  {'lat':  46, 'lon': 2}
@@ -536,11 +542,11 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
     [dash.dependencies.State('div-rt-map', 'n_clicks')])
 def display_click_data(clickData, n_clicks):
     display_msg("display_click_data ...")
-
-    if n_clicks < 1:
+    # don't work  : block first click on map (need to click on buttons before)
+    '''if n_clicks < 1:
         display_msg("Nothing to do!")
         display_msg("display_click_data END.")
-        return dash.no_update
+        return dash.no_update'''
 
     try:
         dep_curr = clickData["points"][0]["location"]
