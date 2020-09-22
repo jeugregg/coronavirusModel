@@ -119,30 +119,11 @@ def precompute_data_pos(df_gouv_fr_raw):
 
     return df_pos_fr, df_test_fr
 
-def get_data_pos():
+def prepare_features(df_feat_fr, df_pos_fr, df_test_fr):
+    '''Finalize preparation of model features df_feat_fr table 
+    to input model.
+    Result is saved only. no output.
     '''
-    1) Retrieve data from Sante Publique France direct CSV URL 
-        (updated every days but with 4 to 5 days delay...)
-    2) Proceed this data by departements (tested - positive)
-    3) Retrieve data from Méteo France
-    4) Proceed this data to have mean feature all over France every days
-    5) Proceed features data for model by combining all these data
-
-    Every databases are saved in CSV format.
-    '''
-
-    df_gouv_fr_raw = get_data_gouv_fr()
-    # creation of data tables : tested & positive
-    df_pos_fr, df_test_fr = precompute_data_pos(df_gouv_fr_raw)
-    
-    # meteo
-    data_meteo = update_data_meteo(df_pos_fr)
-
-    # create features for model
-    # add meteo data
-    # pre-compute data meteo
-    df_feat_fr = precompute_data_meteo(data_meteo)
-
     # add daily positive cases for all departements
     df_feat_fr["pos"] = df_pos_fr["daily"].copy()
     # add age positive cases
@@ -163,6 +144,27 @@ def get_data_pos():
     # save for future uses
     df_feat_fr.to_csv(PATH_DF_FEAT_FR, index=False)
 
+def get_data_pos():
+    '''
+    1) Retrieve data from Sante Publique France direct CSV URL 
+        (updated every days but with 4 to 5 days delay...)
+    2) Proceed this data by departements (tested - positive)
+    3) Retrieve data from Méteo France
+    4) Proceed this data to have mean feature all over France every days
+    5) Proceed features data for model by combining all these data
+
+    Every databases are saved in CSV format.
+    '''
+    df_gouv_fr_raw = get_data_gouv_fr()
+    # creation of data tables : tested & positive
+    df_pos_fr, df_test_fr = precompute_data_pos(df_gouv_fr_raw)
+    # meteo
+    data_meteo = update_data_meteo(df_pos_fr.index.tolist())
+    # create features for model
+    # pre-compute data meteo & add
+    df_feat_fr = precompute_data_meteo(data_meteo)
+    # finalize features and save (df_feat_fr on disk)
+    prepare_features(df_feat_fr, df_pos_fr, df_test_fr)
 
 # FOR data to plot
 def load_data_pos():

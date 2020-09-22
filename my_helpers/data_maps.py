@@ -23,7 +23,8 @@ PATH_PT_FR_TEST_LAST = PATH_TO_SAVE_DATA + '/' + 'pt_fr_test_last.csv'
 PATH_DEP_FR = PATH_TO_SAVE_DATA + '/' + 'dep_fr.csv'
 PATH_DF_CODE_DEP = PATH_TO_SAVE_DATA + '/' + 'df_code_dep.csv'
 PATH_GEO_DEP_FR = PATH_TO_SAVE_DATA + '/sources/geofrance/' + 'departments.csv'
-URL_GEOJSON_DEP_FR = 'sources/departements-avec-outre-mer_simple.json'
+URL_GEOJSON_DEP_FR = PATH_TO_SAVE_DATA + \
+    '/sources/departements-avec-outre-mer_simple.json'
 
 NB_DAYS_CV = 14
 

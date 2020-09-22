@@ -147,8 +147,8 @@ def calc_list_mean_field(data_meteo, fieldname, fun):
         list_mean.append(calculate_mean_field(list_field, fun))
     return list_mean
 
-def update_data_meteo(df_pos_fr):
-    '''Update missing data from meteo france'''
+def update_data_meteo(list_str_dates):
+    '''Update with missing data from meteo france'''
     # meteo
     if os.path.isfile(PATH_JSON_METEO_FR):
         f_reload_from_start = False
@@ -158,13 +158,13 @@ def update_data_meteo(df_pos_fr):
             data_meteo = json.load(f)
         # check start date
         date_meteo_start = get_data_meteo_date_min(data_meteo)
-        delta_days = days_between(df_pos_fr.index.min(), date_meteo_start)
+        delta_days = days_between(min(list_str_dates), date_meteo_start)
         if delta_days.days > 0:
             print(f"Must reload from start, {delta_days.days} days missing")
             f_reload_from_start = True
         # check last date
         date_meteo_end = get_data_meteo_date_max(data_meteo)
-        delta_days = days_between(date_meteo_end, df_pos_fr.index.max())
+        delta_days = days_between(date_meteo_end, max(list_str_dates))
         if delta_days.days > 0:
             print(f"Must load more last days, {delta_days.days} days missing")
             f_load_missing = True
@@ -173,10 +173,10 @@ def update_data_meteo(df_pos_fr):
         list_dates = None
         if f_reload_from_start:
             # all dates between [FORCED]
-            list_dates = df_pos_fr.index.tolist()
+            list_dates = list_str_dates
         elif f_load_missing:
             # from date
-            list_dates = df_pos_fr.index.tolist()
+            list_dates = list_str_dates
             # remove days already downloaded:
             list_remove = get_data_meteo_date_list(data_meteo)
             #get_data_meteo_date_list(data_meteo)
@@ -192,7 +192,7 @@ def update_data_meteo(df_pos_fr):
         # all dates between [FORCED]
         f_reload_from_start = True
         f_load_missing = True
-        list_dates = df_pos_fr.index.tolist()
+        list_dates = list_str_dates
     # if download needed
     if list_dates is not None:
         data_meteo_new = get_data_meteo_by_list(list_dates)
@@ -204,7 +204,7 @@ def update_data_meteo(df_pos_fr):
         else:
             # add data
             data_meteo["records"] = data_meteo["records"] + \
-                data_meteo_new["records"]      
+                data_meteo_new["records"]
         # save
         with open(PATH_JSON_METEO_FR, 'w') as outfile:
             json.dump(data_meteo, outfile)
