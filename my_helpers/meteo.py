@@ -1,18 +1,24 @@
 # -*- coding: utf-8 -*-
-
-import pandas as pd
-import numpy as np
+''' Module to treat Meteo France data
+'''
+# built-in
 import os
 import json
+
+# third-party
+import pandas as pd
+import numpy as np
 import urllib.request
 
-# helpers project modules
+# project libraries
 import settings
 from my_helpers.dates import days_between
 
 # DEFINITIONS
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
 PATH_JSON_METEO_FR = PATH_TO_SAVE_DATA + '/' + 'data_meteo_fr.json'
+PATH_JSON_METEO_TEMP_FR = PATH_TO_SAVE_DATA + '/' + 'data_meteo_temp_fr.json'
+PATH_DF_METEO_FR = PATH_TO_SAVE_DATA + '/' + 'df_meteo_fr.csv'
 
 
 # For METEO
@@ -79,11 +85,9 @@ def get_data_meteo_date_max(data):
     return max(list_date)[0:10]
 
 def get_rec_by_date(data_meteo, date_str):
-    '''
-    get one date data 
+    ''' get one date data 
     '''
     
-    # date_str = '2020-05-14'
     list_rec = []
     for rec_curr in data_meteo["records"]:
         if rec_curr['fields']["date"][0:10] == date_str:
@@ -93,8 +97,7 @@ def get_rec_by_date(data_meteo, date_str):
     return data_out
 
 def select_rec_by_station(data_meteo):
-    '''
-    Select list of list of data by station
+    ''' Select list of list of data by station
     '''
     list_station = [data_meteo["records"][I]['fields']['numer_sta'] \
                     for I in range(len(data_meteo["records"]))]
@@ -112,8 +115,7 @@ def select_rec_by_station(data_meteo):
 
 
 def get_field_in_list(list_rec, field_name):
-    '''
-    get a field from a list of list of data 
+    ''' get a field from a list of list of data 
     '''
     list_field = []
     for I in range(len(list_rec)):
@@ -128,8 +130,7 @@ def get_field_in_list(list_rec, field_name):
     return list_field
 
 def calculate_mean_field(list_field, fun):
-    """
-    calculate mean with fun on list of data
+    """ calculate mean with fun on list of data
     """
     list_by_sta = []
     for list_curr in list_field:
@@ -213,6 +214,66 @@ def update_data_meteo(list_str_dates):
 
     return data_meteo
 
+def update_data_meteo_light(list_str_dates):
+    '''Update with missing data from meteo france
+    using df_meteo_fr instead of big meteo data
+    '''
+    # meteo
+    if os.path.isfile(PATH_DF_METEO_FR):
+        f_reload_from_start = False
+        f_load_missing = False
+        # load
+        df_meteo_fr = pd.read_csv(PATH_DF_METEO_FR)
+        df_meteo_fr.index = df_meteo_fr["date"]
+        # check start date
+        date_meteo_start = df_meteo_fr["date"].min()
+        delta_days = days_between(min(list_str_dates), date_meteo_start)
+        if delta_days.days > 0:
+            print(f"Must reload from start, {delta_days.days} days missing")
+            f_reload_from_start = True
+        # check last date
+        date_meteo_end = df_meteo_fr["date"].max()
+        delta_days = days_between(date_meteo_end, max(list_str_dates))
+        if delta_days.days > 0:
+            print(f"Must load more last days, {delta_days.days} days missing")
+            f_load_missing = True
+        
+        # determine list of days to download
+        list_dates = None
+        if f_reload_from_start:
+            # all dates between [FORCED]
+            list_dates = list_str_dates
+        elif f_load_missing:
+            # from date
+            list_dates = list_str_dates
+            # remove days already downloaded:
+            list_remove =  df_meteo_fr["date"].tolist()
+            for item_curr in  list_remove:
+                try:
+                    list_dates.remove(item_curr)
+                except:
+                    print(f'{item_curr} not found in dates list')
+        else:
+            # download NOT needed
+            list_dates = None
+    else:
+        # all dates between [FORCED]
+        f_reload_from_start = True
+        f_load_missing = True
+        list_dates = list_str_dates
+    # if download needed
+    if list_dates is not None:
+        data_meteo_new = get_data_meteo_by_list(list_dates)
+        print(f'{len(data_meteo_new["records"])} records downloaded')
+        # save
+        with open(PATH_JSON_METEO_TEMP_FR, 'w') as outfile:
+            json.dump(data_meteo_new, outfile)
+    else:
+        data_meteo_new = None
+        print("No new data meteo")
+
+    return data_meteo_new
+
 def precompute_data_meteo(data_meteo):
     '''pre-compute data meteo'''
 
@@ -228,9 +289,45 @@ def precompute_data_meteo(data_meteo):
     dict_meteo["u_min"] = list_u_min
     dict_meteo["u_max"] = list_u_max
 
-    df_feat_fr = pd.DataFrame(data=dict_meteo)
-    df_feat_fr.columns = ["date", "T_min", "T_max", "H_min", "H_max"]
-    df_feat_fr.sort_values(by="date", inplace=True)
-    df_feat_fr.index = df_feat_fr["date"]
+    df_meteo_fr = pd.DataFrame(data=dict_meteo)
+    df_meteo_fr.columns = ["date", "T_min", "T_max", "H_min", "H_max"]
+    df_meteo_fr.sort_values(by="date", inplace=True)
+    df_meteo_fr.index = df_meteo_fr["date"]
 
-    return df_feat_fr
+    # save df_meteo
+    df_meteo_fr.to_csv(PATH_DF_METEO_FR, index=False) 
+
+    return df_meteo_fr
+
+def precompute_data_meteo_light(data_meteo):
+    '''pre-compute data meteo
+    using only new data 
+    '''
+
+    list_t_min = calc_list_mean_field(data_meteo, "t", min)
+    list_t_max = calc_list_mean_field(data_meteo, "t", max)
+    list_u_min = calc_list_mean_field(data_meteo, "u", min)
+    list_u_max = calc_list_mean_field(data_meteo, "u", max)
+
+    dict_meteo = dict()
+    dict_meteo["date"] = get_data_meteo_date_list(data_meteo)
+    dict_meteo["t_min"] = list_t_min
+    dict_meteo["t_max"] = list_t_max
+    dict_meteo["u_min"] = list_u_min
+    dict_meteo["u_max"] = list_u_max
+
+    df_meteo_fr_new = pd.DataFrame(data=dict_meteo)
+    df_meteo_fr_new.columns = ["date", "T_min", "T_max", "H_min", "H_max"]
+    df_meteo_fr_new.sort_values(by="date", inplace=True)
+    df_meteo_fr_new.index = df_meteo_fr_new["date"]
+
+    # load old data 
+    df_meteo_fr = pd.read_csv(PATH_DF_METEO_FR)
+    df_meteo_fr.index = df_meteo_fr["date"]
+
+    # append new data 
+    df_meteo_fr.append(df_meteo_fr_new, verify_integrity=True)
+    # save df_meteo
+    df_meteo_fr.to_csv(PATH_DF_METEO_FR, index=False) 
+
+    return df_meteo_fr

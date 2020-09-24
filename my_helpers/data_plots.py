@@ -1,26 +1,26 @@
 # -*- coding: utf-8 -*-
+''' Prepare for plot positive cases data and model features
+'''
 
-import pandas as pd
-import numpy as np
+# import built-in
 import re
 import datetime
 import io
+
+# import third party
+import pandas as pd
+import numpy as np
 import requests
 
-
-# helpers project modules
-
+# import project libraries
 import settings
-
 from my_helpers.dates import days_between, add_days, get_file_date
-
-from my_helpers.meteo import update_data_meteo, precompute_data_meteo
-
+from my_helpers.meteo import update_data_meteo_light
+from my_helpers.meteo import precompute_data_meteo_light
 from my_helpers.model import FUTURE_TARGET, TRAIN_SPLIT
 from my_helpers.model import update_pred_pos, update_pred_pos_all
 
 # DEFINITIONS
-
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
 URL_CSV_GOUV_FR = 'https://www.data.gouv.fr/' + \
     'fr/datasets/r/406c6a23-e283-4300-9484-54e78c8ae675'
@@ -159,10 +159,10 @@ def get_data_pos():
     # creation of data tables : tested & positive
     df_pos_fr, df_test_fr = precompute_data_pos(df_gouv_fr_raw)
     # meteo
-    data_meteo = update_data_meteo(df_pos_fr.index.tolist())
+    data_meteo = update_data_meteo_light(df_pos_fr.index.tolist())
     # create features for model
     # pre-compute data meteo & add
-    df_feat_fr = precompute_data_meteo(data_meteo)
+    df_feat_fr = precompute_data_meteo_light(data_meteo)
     # finalize features and save (df_feat_fr on disk)
     prepare_features(df_feat_fr, df_pos_fr, df_test_fr)
 
