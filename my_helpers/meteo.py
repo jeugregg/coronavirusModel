@@ -303,7 +303,13 @@ def precompute_data_meteo_light(data_meteo):
     '''pre-compute data meteo
     using only new data 
     '''
-
+    
+    if data_meteo is None:
+        # load old data 
+        df_meteo_fr = pd.read_csv(PATH_DF_METEO_FR)
+        df_meteo_fr.index = df_meteo_fr["date"]
+        return df_meteo_fr
+    
     list_t_min = calc_list_mean_field(data_meteo, "t", min)
     list_t_max = calc_list_mean_field(data_meteo, "t", max)
     list_u_min = calc_list_mean_field(data_meteo, "u", min)
@@ -326,7 +332,7 @@ def precompute_data_meteo_light(data_meteo):
     df_meteo_fr.index = df_meteo_fr["date"]
 
     # append new data 
-    df_meteo_fr.append(df_meteo_fr_new, verify_integrity=True)
+    df_meteo_fr = df_meteo_fr.append(df_meteo_fr_new, verify_integrity=True)
     # save df_meteo
     df_meteo_fr.to_csv(PATH_DF_METEO_FR, index=False) 
 
