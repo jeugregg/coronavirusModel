@@ -299,11 +299,11 @@ def precompute_data_meteo(data_meteo):
 
     return df_meteo_fr
 
-def precompute_data_meteo_light(data_meteo):
+def precompute_data_meteo_light(data_meteo=None):
     '''pre-compute data meteo
     using only new data 
     '''
-    
+
     if data_meteo is None:
         # load old data 
         df_meteo_fr = pd.read_csv(PATH_DF_METEO_FR)

@@ -6,6 +6,7 @@
 import re
 import datetime
 import io
+import os
 
 # import third party
 import pandas as pd
@@ -31,6 +32,7 @@ PATH_DF_TEST_FR = PATH_TO_SAVE_DATA + '/' + 'df_test_fr.csv'
 PATH_DF_FEAT_FR = PATH_TO_SAVE_DATA + '/' + 'df_feat_fr.csv' 
 NB_PERIOD_PLOT = settings.NB_PERIOD_PLOT
 NB_DAY_PLOT = FUTURE_TARGET * NB_PERIOD_PLOT
+from my_helpers.meteo import PATH_DF_METEO_FR
 
 # DATA from SPF
 def get_data_gouv_fr():
@@ -119,6 +121,12 @@ def precompute_data_pos(df_gouv_fr_raw):
 
     return df_pos_fr, df_test_fr
 
+def precompute_data_pos_disk():
+    ''' Pre-compute data from Sante Publique France from disk
+    '''
+    df_gouv_fr_raw = load_data_gouv()
+    precompute_data_pos(df_gouv_fr_raw)
+
 def prepare_features(df_feat_fr, df_pos_fr, df_test_fr):
     '''Finalize preparation of model features df_feat_fr table 
     to input model.
@@ -143,6 +151,20 @@ def prepare_features(df_feat_fr, df_pos_fr, df_test_fr):
 
     # save for future uses
     df_feat_fr.to_csv(PATH_DF_FEAT_FR, index=False)
+
+def prepare_features_disk():
+    '''Prepare features from disk
+    '''
+    df_feat_fr = load_data_pos()
+    df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
+    df_test_fr = pd.read_csv(PATH_DF_TEST_FR)
+    prepare_features(df_feat_fr, df_pos_fr, df_test_fr)
+
+def update_data_meteo_disk():
+    ''' Update meteo light from disk
+    '''
+    df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
+    update_data_meteo_light(df_pos_fr["date"].tolist())
 
 def get_data_pos():
     '''
@@ -180,7 +202,7 @@ def load_data_gouv():
     Load data gouv France
     '''
     try:
-        df_gouv_fr_raw = pd.read_csv(PATH_DF_GOUV_FR_RAW)
+        df_gouv_fr_raw = pd.read_csv(PATH_DF_GOUV_FR_RAW, low_memory=False)
     except:
         # try to get from URL
         df_gouv_fr_raw = get_data_gouv_fr()
@@ -225,12 +247,26 @@ def prepare_plot_data_pos(df_feat_fr, flag_update):
 def check_update():
     '''
     Just check if new data possibly available
-    (if file date older than 24 hours)
+    (if file date older than 24 hours or 
+    different dates of postive cases and meteo)
     '''
     time_file_df_feat_date = get_file_date(PATH_DF_FEAT_FR)
     dtime_now  = datetime.datetime.now() - time_file_df_feat_date
+
+    # meteo check
+    # if date df_pos != date df_meteo
+    if (os.path.isfile(PATH_DF_POS_FR) & os.path.isfile(PATH_DF_METEO_FR)):
+        df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
+        df_meteo_fr = pd.read_csv(PATH_DF_METEO_FR)
+        if df_pos_fr["date"].max() !=  df_meteo_fr["date"].max():
+            flag_meteo = True
+        else:
+            flag_meteo = False
+    else:
+        flag_meteo = True
+
     # update only if more than 24 hours without update
-    if dtime_now.days > 0:
+    if ((dtime_now.days > 0) | flag_meteo):
         flag_old = True
         # update data from external 
         print("Maybe new data available...")

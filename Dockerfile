@@ -2,7 +2,7 @@ FROM python:3.7-slim
 WORKDIR /app
 COPY requirements_light.txt /app/
 COPY app.py /app/
-COPY data_meteo_fr.json /app/ 
+COPY df_meteo_fr.csv /app/
 COPY df_feat_fr.csv /app/
 COPY df_plot_pred.csv /app/
 COPY df_plot_pred_all.csv /app/
