@@ -21,7 +21,7 @@ from my_helpers.dates import add_days, generate_list_dates
 # plot
 NB_PERIOD_PLOT = settings.NB_PERIOD_PLOT
 # model parameters
-TRAIN_SPLIT = 113
+TRAIN_SPLIT = 135
 PAST_HISTORY= 14 # days used to predict next values in future
 FUTURE_TARGET = 7 # predict 3 days later
 STEP = 1
@@ -233,3 +233,31 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
     df_plot_pred_all.to_csv(PATH_DF_PLOT_PRED_ALL, index=False)
 
     return df_plot_pred_all
+
+
+def create_list_past_hist(dataset):  
+    '''
+    Prepare list of past histories
+    '''
+    list_x = []
+    # prepare data : very last days
+    I_start_pred = TRAIN_SPLIT - NB_PERIOD_PLOT*FUTURE_TARGET
+    for I in range(NB_PERIOD_PLOT):
+        I_start = I_start_pred + I * FUTURE_TARGET - PAST_HISTORY
+        I_end =   I_start_pred + I * FUTURE_TARGET
+        print(f"[{I_start} - {I_end}]")
+        list_x.append(np.array([dataset[I_start:I_end, :]]))
+    print(len(list_x))
+    return list_x
+
+def predict_list(list_x, multi_step_model):
+    """
+    Predict a list with multi step model
+    """
+    for I, x_multi in enumerate(list_x):
+        if I:
+            y_multi_pred = np.concatenate([y_multi_pred, 
+                multi_step_model.predict(x_multi)], axis=1)
+        else:
+            y_multi_pred = multi_step_model.predict(x_multi) 
+    return y_multi_pred
