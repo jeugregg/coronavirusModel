@@ -36,6 +36,31 @@ PATH_DF_PLOT_PRED_ALL = PATH_TO_SAVE_DATA + '/' + 'df_plot_pred_all.csv'
 PATH_MDL_SINGLE_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_single_step_pos_fr"
 PATH_MDL_MULTI_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_multi_step_pos_fr"
 
+
+# For training and test
+def multivariate_data(dataset, target, start_index, end_index, history_size,
+                      target_size, step, single_step=False):
+    '''
+    Create dataset for training : create each samples (timeseries data)
+    '''
+    data = []
+    labels = []
+
+    start_index = start_index + history_size
+    if end_index is None:
+        end_index = len(dataset) - target_size
+
+    for i in range(start_index, end_index):
+        indices = range(i-history_size, i, step)
+        data.append(dataset[indices])
+
+        if single_step:
+            labels.append(target[i+target_size])
+        else:
+            labels.append(target[i:i+target_size])
+
+    return np.array(data), np.array(labels)
+
 # FOR AWS Lambda predict
 def prepare_to_lambda(dataset):
     '''
@@ -54,6 +79,14 @@ def prepare_to_lambda(dataset):
         
     json_list_list_x = json.dumps(list_list_x)
     return json_list_list_x
+
+def prepare_to_lambda_future(dataset):
+    '''
+    Prepare data input model to be used by lambda: 
+    
+    for prediction of very last days
+    '''
+    return json.dumps([[dataset[-PAST_HISTORY:,:].tolist()]])
 
 def retrieve_from_lambda(response):
     '''
@@ -76,13 +109,21 @@ def retrieve_from_lambda(response):
             y_multi_pred_out = np.array(list_x_multi)
     return y_multi_pred_out   
 
-def prepare_to_lambda_future(dataset):
+def prepare_dataset(df_feat_fr):
     '''
-    Prepare data input model to be used by lambda: 
-    
-    for prediction of very last days
+    Prepare final data input model
     '''
-    return json.dumps([[dataset[-PAST_HISTORY:,:].tolist()]])
+    # prepare features
+    features = df_feat_fr.copy().filter(items=['T_min', 'T_max', 'H_min',
+                                           'H_max', 'pos', 'test', 'day_num',
+                                           'age_pos', 'age_test'])
+    # prepare dataset 
+    dataset = features.values
+    data_mean = dataset[:TRAIN_SPLIT].mean(axis=0)
+    data_std = dataset[:TRAIN_SPLIT].std(axis=0)
+    dataset = (dataset-data_mean)/data_std
+
+    return dataset, data_std, data_mean
 
 # Prediction
 
@@ -96,15 +137,7 @@ def update_pred_pos(df_feat_fr, from_disk=False):
         return df_plot_pred
 
     # prepare features
-    features = df_feat_fr.copy().filter(items=['T_min', 'T_max', 'H_min',
-                                           'H_max', 'pos', 'test', 'day_num',
-                                           'age_pos', 'age_test'])
-    # prepare dataset 
-    dataset = features.values
-    data_mean = dataset[:TRAIN_SPLIT].mean(axis=0)
-    data_std = dataset[:TRAIN_SPLIT].std(axis=0)
-    dataset = (dataset-data_mean)/data_std
-
+    dataset, data_std, data_mean = prepare_dataset(df_feat_fr)
     # predict next days
     if settings.MODEL_TFLITE:
         json_list_list_x = prepare_to_lambda_future(dataset)
@@ -155,14 +188,7 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
         return df_plot_pred_all
 
     # prepare features
-    features = df_feat_fr.copy().filter(items=['T_min', 'T_max', 'H_min',
-                                           'H_max', 'pos', 'test', 'day_num',
-                                           'age_pos', 'age_test'])
-    # prepare dataset 
-    dataset = features.values
-    data_mean = dataset[:TRAIN_SPLIT].mean(axis=0)
-    data_std = dataset[:TRAIN_SPLIT].std(axis=0)
-    dataset = (dataset-data_mean)/data_std
+    dataset, data_std, data_mean = prepare_dataset(df_feat_fr)
 
     # predict
     if settings.MODEL_TFLITE:
