@@ -5,54 +5,39 @@ COVID-19 in France Dashboard: Datavisualization & Model
 Map of Reproduction number in France by "départements"
 A tensorflow deep leanring model try to estimate next 7 days confirmed cases in 
 France with last 14 days data available.
+
+Run this app with `python app.py` and
+visit http://0.0.0.0/ in your web browser.
 '''
-# Run this app with `python app.py` and
-# visit http://0.0.0.0/ in your web browser.
+# IMPORT 
 
-import settings
-# General Definition 
-#MODE_DEBUG = True # default = False 
-#MODE_FORCE_UPDATE = False # default = False 
-#PREDICT = True # default = True 
-#MODEL_TFLITE = True # default = True 
-PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
-
+# import bluit-in 
+import math
+import datetime
+import re
+import os
+# import third party 
 import flask
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-
 import pandas as pd
 import numpy as np
-import math
-
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
-import datetime
-
-import re
-import os
-
-# Project modules 
-
+# import project modules 
+import settings
 from my_helpers.dates import *
-
 from my_helpers.data_plots import prepare_data_input
 from my_helpers.data_plots import prepare_plot_data_pos
 from my_helpers.data_plots import check_update
-
 from my_helpers.model import FUTURE_TARGET, PAST_HISTORY
-
 from my_helpers.data_maps import prepare_plot_data_map
 
 # DEFINITIONS
 
-
-#NB_POS_DATE_MIN_DF_FEAT = 140227 # on 12/05/2020
-#date_format = "%Y-%m-%d"
-
+PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
 
 # HELPER FUNCTIONS
 

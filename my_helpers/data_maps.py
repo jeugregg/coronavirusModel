@@ -2,15 +2,14 @@
 
 # IMPORT
 
-# settings
-import settings
-# classical
+# import bluit-in
 import pandas as pd
 import numpy as np
 import math
 import json
 import datetime
-# helpers project modules
+# import project modules
+import settings
 from my_helpers.dates import create_date_ranges, add_days
 from my_helpers.data_plots import load_data_gouv 
 

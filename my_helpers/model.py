@@ -2,9 +2,9 @@
 
 # IMPORT
 
-# settings
+# settings (special)
 import settings
-# classical
+# import built-in 
 import math
 import numpy as np
 import pandas as pd
@@ -13,7 +13,7 @@ import requests
 if settings.PREDICT:
     if not settings.MODEL_TFLITE:
         import tensorflow as tf
-# helpers project modules
+# import project modules
 from my_helpers.dates import add_days, generate_list_dates
 
 # DEFINITIONS 
