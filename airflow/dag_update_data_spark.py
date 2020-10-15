@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-''' AirFlow DAG : check import updata DATA with Spark for precompute meteo
+''' AirFlow DAG : update DATA with Local Spark to precompute meteo
 On AWS S3 from SPF and Meteo France
 - check if update is available
 - download raw data on S3
-- treat data with AWS EMR Spark ephemere 
+- treat data with  local Spark  
 - save results in tables (df_gouv_fr_raw / df_meteo_fr or df_feat_fr )
 - 
 '''
