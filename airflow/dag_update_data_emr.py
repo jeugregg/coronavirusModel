@@ -18,6 +18,9 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator 
 from airflow.operators.dummy_operator import DummyOperator 
 from airflow.operators.bash_operator import BashOperator 
+from airflow.contrib.operators.emr_create_job_flow_operator \
+    import EmrCreateJobFlowOperator
+from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor
 
 # project import 
 PATH_PROJECT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -38,13 +41,47 @@ from my_helpers.data_maps import PATH_DF_DEP_R0, PATH_PT_FR_TEST_LAST
 from my_helpers.meteo import PATH_DF_METEO_FR
 from my_helpers.meteo import PATH_JSON_METEO_TEMP_FR
 
-PATH_METEO_SPARK = os.path.join(PATH_PROJECT, 'meteo_spark.py')
+#PATH_METEO_SPARK = os.path.join(PATH_PROJECT, 'meteo_spark.py')
 
+# for DAG
 default_args = {
     'owner': 'gregory',
     'start_date': datetime.datetime(2020, 9, 25),
     'retry_delay': datetime.timedelta(minutes=5),
 }
+# For EMR
+SPARK_STEPS = [
+    {
+        'Name': 'calculate_pi',
+        'ActionOnFailure': 'CONTINUE',
+        'HadoopJarStep': {
+            'Jar': 'command-runner.jar',
+            'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+        },
+    }
+]
+
+JOB_FLOW_OVERRIDES = {
+    'Name': 'PiCalc',
+    'ReleaseLabel': 'emr-5.29.0',
+    'Instances': {
+        'InstanceGroups': [
+            {
+                'Name': 'Master node',
+                'Market': 'SPOT',
+                'InstanceRole': 'MASTER',
+                'InstanceType': 'm1.medium',
+                'InstanceCount': 1,
+            }
+        ],
+        'KeepJobFlowAliveWhenNoSteps': True,
+        'TerminationProtected': False,
+    },
+    'JobFlowRole': 'EMR_EC2_DefaultRole',
+    'ServiceRole': 'EMR_DefaultRole',
+}
+
+
 # Using the context manager alllows you not to duplicate the dag parameter in each operator
 with DAG('app_visu_covid_update', default_args=default_args, 
     schedule_interval='@daily') as my_dag:
@@ -68,11 +105,25 @@ with DAG('app_visu_covid_update', default_args=default_args,
         python_callable=update_data_meteo_disk,
         dag=my_dag)  
 
-    precompute_data_meteo_spark_task = BashOperator(
+    '''precompute_data_meteo_spark_task = BashOperator(
         task_id='precompute_data_meteo_spark',
         bash_command='/usr/local/opt/apache-spark/bin/spark-submit ' + \
             PATH_METEO_SPARK,
-        dag=my_dag)
+        dag=my_dag)'''
+
+    precompute_data_meteo_emr_task = EmrCreateJobFlowOperator(
+        task_id='precompute_data_meteo_emr',
+        job_flow_overrides=JOB_FLOW_OVERRIDES,
+        aws_conn_id='aws_default',
+        emr_conn_id='emr_default',
+    )
+
+    emr_job_sensor = EmrJobFlowSensor(
+        task_id='check_job_flow',
+        job_flow_id="{{ task_instance.xcom_pull(" +  \
+            "task_ids='precompute_data_meteo_emr', key='return_value') }}",
+        aws_conn_id='aws_default',
+    )
 
     prepare_features_task = PythonOperator(
         task_id='prepare_features',
@@ -98,5 +149,6 @@ with DAG('app_visu_covid_update', default_args=default_args,
 
     # Use arrows to set dependencies between tasks
     start_task >> get_data_gouv_fr_task >> precompute_data_pos_task >> \
-        update_data_meteo_task >> precompute_data_meteo_spark_task >> \
-        prepare_features_task >> prepare_plot_data_map_task >> upload_to_S3_task
+        update_data_meteo_task >> precompute_data_meteo_emr_task >> \
+        emr_job_sensor >> prepare_features_task >> \
+        prepare_plot_data_map_task >> upload_to_S3_task
