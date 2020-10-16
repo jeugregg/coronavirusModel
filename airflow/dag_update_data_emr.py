@@ -52,33 +52,83 @@ default_args = {
 # For EMR
 SPARK_STEPS = [
     {
-        'Name': 'calculate_pi',
-        'ActionOnFailure': 'CONTINUE',
+        'Name': 'Application Spark',
+        'ActionOnFailure': 'TERMINATE_CLUSTER',
         'HadoopJarStep': {
             'Jar': 'command-runner.jar',
-            'Args': ['/usr/lib/spark/bin/run-example', 'SparkPi', '10'],
+            'Args': ["spark-submit","--deploy-mode","cluster",
+                "s3://app-covid-visu-bucket/meteo_spark_emr.py"],
         },
     }
 ]
 
+EBS_CONFIG = {
+    'EbsBlockDeviceConfigs': [
+        {
+            'VolumeSpecification': {
+                'VolumeType': 'gp2',
+                'SizeInGB': 32
+            },
+            'VolumesPerInstance': 1
+        },
+    ]
+}
+# applications Name=Ganglia Name=Spark Name=Zeppelin 
 JOB_FLOW_OVERRIDES = {
-    'Name': 'PiCalc',
-    'ReleaseLabel': 'emr-5.29.0',
+    'Name': 'Treat_Data_Meteo',
+    'ReleaseLabel': 'emr-5.30.1',
+    "Applications": [ 
+      { 
+         "Name": "Ganglia",
+      },
+      { 
+         "Name": "Spark",
+      },
+      { 
+         "Name": "Zeppelin",
+      }
+    ],
     'Instances': {
         'InstanceGroups': [
             {
                 'Name': 'Master node',
-                'Market': 'SPOT',
+                'Market': 'ON_DEMAND',
                 'InstanceRole': 'MASTER',
-                'InstanceType': 'm1.medium',
+                'InstanceType': 'm4.large',
                 'InstanceCount': 1,
+                'EbsConfiguration': EBS_CONFIG,
+            }, 
+            {
+                'Name': 'Principal node',
+                'Market': 'ON_DEMAND',
+                'InstanceRole': 'CORE',
+                'InstanceType': 'm4.large',
+                'InstanceCount': 2,
+                'EbsConfiguration': EBS_CONFIG,
             }
         ],
-        'KeepJobFlowAliveWhenNoSteps': True,
+        'KeepJobFlowAliveWhenNoSteps': False,
         'TerminationProtected': False,
+        'Ec2KeyName': 'EC2_AWS_01',
+        'Ec2SubnetId': 'subnet-6583b71f',
+        'EmrManagedMasterSecurityGroup': 'sg-0c777b0f367bb7681',
+        'EmrManagedSlaveSecurityGroup': 'sg-09fe5f546208999ab',
+        'Steps': SPARK_STEPS,
     },
     'JobFlowRole': 'EMR_EC2_DefaultRole',
     'ServiceRole': 'EMR_DefaultRole',
+    'AutoScalingRole': 'EMR_AutoScaling_DefaultRole',
+    'ScaleDownBehavior': 'TERMINATE_AT_TASK_COMPLETION',
+    'EbsRootVolumeSize': 10,
+    'LogUri': 's3n://aws-logs-324466407431-us-east-2/elasticmapreduce/',
+    "BootstrapActions": [ 
+      { 
+         "Name": "Personal action",
+         "ScriptBootstrapAction": { 
+            "Path": "s3://app-covid-visu-bucket/bootstrap-emr-meteo.sh"
+         }
+      }
+    ],
 }
 
 
