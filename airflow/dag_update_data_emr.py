@@ -2,11 +2,14 @@
 
 ''' AirFlow DAG : update DATA with AWS EMR Spark to precompute meteo
 On AWS S3 from SPF and Meteo France
-- check if update is available
-- download raw data on S3
+- check if update is available 
+- download COVID data
+- download raw METEO data
+- upload on S3 raw METEO data
 - treat data with AWS EMR Spark ephemere 
-- save results in tables (df_gouv_fr_raw / df_meteo_fr or df_feat_fr )
-- 
+- download METEO processed data from S3
+- prepare features mixing METEO and COVID data
+- prepare map data from COVID data
 '''
 
 # import 
@@ -19,6 +22,7 @@ import ntpath
 
 # third party import
 from airflow import DAG
+from airflow.utils.dates import days_ago
 from airflow.operators.python_operator import PythonOperator 
 from airflow.operators.dummy_operator import DummyOperator 
 from airflow.operators.bash_operator import BashOperator 
@@ -52,8 +56,9 @@ BUCKET_NAME = settings.BUCKET_NAME
 # for DAG
 default_args = {
     'owner': 'gregory',
-    'start_date': datetime.datetime(2020, 10, 16),
-    'retry_delay': datetime.timedelta(minutes=5),
+    'start_date': days_ago(2),
+    'retries': 3,
+    'retry_delay': datetime.timedelta(minutes=60),
 }
 # For EMR
 FILE_SPARK = ntpath.basename(PATH_METEO_SPARK)
@@ -139,9 +144,9 @@ JOB_FLOW_OVERRIDES = {
 }
 
 
-# Using the context manager alllows you not to duplicate the dag parameter in each operator
+# Execute at 5am UTC (7am Paris) to be sure that meteo data is ok
 with DAG('app_visu_covid_upd_emr', default_args=default_args, 
-    schedule_interval='@daily') as my_dag:
+    schedule_interval='0 5 * * *', catchup=False) as my_dag:
 
     start_task = DummyOperator(
             task_id='dummy_start'
@@ -162,6 +167,7 @@ with DAG('app_visu_covid_upd_emr', default_args=default_args,
         python_callable=update_data_meteo_disk,
         dag=my_dag)  
 
+    # upload on S3 meteo data to be processed in EMR 
     upload_to_S3_meteo_task = PythonOperator(
         task_id='upload_to_S3_meteo',
         python_callable=upload_files_to_S3_with_hook,
@@ -171,19 +177,15 @@ with DAG('app_visu_covid_upd_emr', default_args=default_args,
             'bucket_name': BUCKET_NAME,
         },
         dag=my_dag)
-    '''precompute_data_meteo_spark_task = BashOperator(
-        task_id='precompute_data_meteo_spark',
-        bash_command='/usr/local/opt/apache-spark/bin/spark-submit ' + \
-            PATH_METEO_SPARK,
-        dag=my_dag)'''
-    
+
+    # launch ephemere EMR task to process data uploaded
     precompute_data_meteo_emr_task = EmrCreateJobFlowOperator(
         task_id='precompute_data_meteo_emr',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
         aws_conn_id='aws_default',
         emr_conn_id='emr_default',
     )
-
+    # wait for EMR end
     emr_job_sensor = EmrJobFlowSensor(
         task_id='check_job_flow',
         job_flow_id="{{ task_instance.xcom_pull(" +  \
@@ -191,6 +193,7 @@ with DAG('app_visu_covid_upd_emr', default_args=default_args,
         aws_conn_id='aws_default',
     )
 
+    # retrieve data processed
     download_files_from_S3_task = PythonOperator(
         task_id='download_from_S3_meteo',
         python_callable=download_files_from_S3,

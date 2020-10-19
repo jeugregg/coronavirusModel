@@ -4,7 +4,9 @@
 
 # settings (special)
 import settings
+
 # import built-in 
+import os
 import math
 import numpy as np
 import pandas as pd
@@ -13,6 +15,7 @@ import requests
 if settings.PREDICT:
     if not settings.MODEL_TFLITE:
         import tensorflow as tf
+
 # import project modules
 from my_helpers.dates import add_days, generate_list_dates
 
@@ -131,6 +134,15 @@ def update_pred_pos(df_feat_fr, from_disk=False):
     '''
     Update prediction data positive cases France
     '''
+
+    # check if last prediction is after last known date
+    if os.path.isfile(PATH_DF_PLOT_PRED):
+        df_plot_pred = pd.read_csv(PATH_DF_PLOT_PRED)
+        df_plot_pred.index = df_plot_pred["date"]
+        if df_plot_pred["date"].min() <= df_feat_fr["date"].max():
+            from_disk = False
+
+    # if no prediction or if from disk 
     if (not settings.PREDICT) | from_disk:
         df_plot_pred = pd.read_csv(PATH_DF_PLOT_PRED)
         df_plot_pred.index = df_plot_pred["date"]
@@ -182,6 +194,12 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
     '''
     Update prediction data positive cases France for all days
     '''
+    if os.path.isfile(PATH_DF_PLOT_PRED_ALL):
+        df_plot_pred = pd.read_csv(PATH_DF_PLOT_PRED_ALL)
+        df_plot_pred.index = df_plot_pred["date"]
+        if df_plot_pred["date"].min() <= df_feat_fr["date"].max():
+            from_disk = False
+
     if (not settings.PREDICT) | from_disk:
         df_plot_pred_all = pd.read_csv(PATH_DF_PLOT_PRED_ALL)
         df_plot_pred_all.index = df_plot_pred_all["date"]

@@ -100,8 +100,9 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
     fig.update_layout(height=600)
 
-    fig.update_yaxes(title_text="nb <b>Daily</b> cases", 
-                    range=[0, 25000], secondary_y=True)
+    fig.update_yaxes(title_text="nb <b>Daily</b> cases", secondary_y=True)
+    #fig.update_yaxes(title_text="nb <b>Daily</b> cases", 
+    #                range=[0, 25000], secondary_y=True)
     display_msg("create_fig_pos END")
     return fig
 

@@ -173,10 +173,11 @@ def prepare_features_disk_emr():
     prepare_features(df_feat_fr, df_pos_fr, df_test_fr)
 
 def update_data_meteo_disk():
-    ''' Update meteo light from disk
+    ''' Update meteo light from disk for Airflow DAG
     '''
     df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
-    update_data_meteo_light(df_pos_fr["date"].tolist())
+    data_meteo_new = update_data_meteo_light(df_pos_fr["date"].tolist())
+    assert data_meteo_new != None
 
 def get_data_pos():
     '''
