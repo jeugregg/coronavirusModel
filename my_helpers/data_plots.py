@@ -18,6 +18,7 @@ import settings
 from my_helpers.dates import days_between, add_days, get_file_date
 from my_helpers.meteo import update_data_meteo_light
 from my_helpers.meteo import precompute_data_meteo_light
+from my_helpers.meteo import PATH_DF_METEO_FR
 from my_helpers.model import FUTURE_TARGET, TRAIN_SPLIT
 from my_helpers.model import update_pred_pos, update_pred_pos_all
 
@@ -153,9 +154,20 @@ def prepare_features(df_feat_fr, df_pos_fr, df_test_fr):
     df_feat_fr.to_csv(PATH_DF_FEAT_FR, index=False)
 
 def prepare_features_disk():
-    '''Prepare features from disk
+    '''
+    Prepare features from disk
     '''
     df_feat_fr = load_data_pos()
+    df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
+    df_test_fr = pd.read_csv(PATH_DF_TEST_FR)
+    prepare_features(df_feat_fr, df_pos_fr, df_test_fr)
+
+def prepare_features_disk_emr():
+    '''
+    Prepare features from disk after EMR
+    Take meteo dataFrame as input for features 
+    '''
+    df_feat_fr = pd.read_csv(PATH_DF_METEO_FR)
     df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
     df_test_fr = pd.read_csv(PATH_DF_TEST_FR)
     prepare_features(df_feat_fr, df_pos_fr, df_test_fr)

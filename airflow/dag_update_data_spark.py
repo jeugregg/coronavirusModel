@@ -66,8 +66,8 @@ with DAG('app_visu_covid_update', default_args=default_args,
     update_data_meteo_task = PythonOperator(
         task_id='update_data_meteo',
         python_callable=update_data_meteo_disk,
-        dag=my_dag)  
-
+        dag=my_dag)
+    
     precompute_data_meteo_spark_task = BashOperator(
         task_id='precompute_data_meteo_spark',
         bash_command='/usr/local/opt/apache-spark/bin/spark-submit ' + \
@@ -91,7 +91,7 @@ with DAG('app_visu_covid_update', default_args=default_args,
         op_kwargs={
             'filenames': [PATH_DF_GOUV_FR_RAW, PATH_DF_POS_FR, PATH_DF_TEST_FR,
                 PATH_DF_FEAT_FR, PATH_DF_DEP_R0, PATH_PT_FR_TEST_LAST, 
-                PATH_DF_METEO_FR, PATH_JSON_METEO_TEMP_FR],
+                PATH_DF_METEO_FR],
             'bucket_name': 'app-covid-visu-bucket',
         },
         dag=my_dag)

@@ -16,10 +16,11 @@ from my_helpers.dates import days_between
 
 # DEFINITIONS
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
-PATH_JSON_METEO_FR = PATH_TO_SAVE_DATA + '/' + 'data_meteo_fr.json'
-PATH_JSON_METEO_TEMP_FR = PATH_TO_SAVE_DATA + '/' + 'data_meteo_temp_fr.json'
-PATH_DF_METEO_FR = PATH_TO_SAVE_DATA + '/' + 'df_meteo_fr.csv'
-
+PATH_JSON_METEO_FR = os.path.join(PATH_TO_SAVE_DATA, 'data_meteo_fr.json')
+PATH_JSON_METEO_TEMP_FR = os.path.join(PATH_TO_SAVE_DATA, 
+    'data_meteo_temp_fr.json')
+PATH_DF_METEO_FR = os.path.join(PATH_TO_SAVE_DATA, 'df_meteo_fr.csv')
+PATH_METEO_SPARK = os.path.join(PATH_TO_SAVE_DATA, 'meteo_spark_emr.py') 
 
 # For METEO
 def create_url_meteo_date(str_date):
@@ -215,8 +216,9 @@ def update_data_meteo(list_str_dates):
     return data_meteo
 
 def update_data_meteo_light(list_str_dates):
-    '''Update with missing data from meteo france
-    using df_meteo_fr instead of big meteo data
+    '''
+    Update with missing data from meteo france
+    using df_meteo_fr instead of big meteo data in JSON format
     '''
     # meteo
     if os.path.isfile(PATH_DF_METEO_FR):

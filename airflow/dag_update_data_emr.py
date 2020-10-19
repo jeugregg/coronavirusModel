@@ -9,9 +9,13 @@ On AWS S3 from SPF and Meteo France
 - 
 '''
 
+# import 
+
 # built-in import
-import os, sys
+import os
+import sys
 import datetime
+import ntpath
 
 # third party import
 from airflow import DAG
@@ -30,26 +34,29 @@ from my_helpers.data_plots import get_data_gouv_fr
 from my_helpers.data_plots import precompute_data_pos_disk
 from my_helpers.data_plots import update_data_meteo_disk
 from my_helpers.data_plots import precompute_data_meteo_light
-from my_helpers.data_plots import prepare_features_disk
+from my_helpers.data_plots import prepare_features_disk_emr
 from my_helpers.data_maps import prepare_plot_data_map
 from S3_helpers import upload_files_to_S3_with_hook
+from S3_helpers import download_files_from_S3
 
 # definitions
+
 from my_helpers.data_plots import PATH_DF_GOUV_FR_RAW, PATH_DF_POS_FR
 from my_helpers.data_plots import PATH_DF_TEST_FR, PATH_DF_FEAT_FR
 from my_helpers.data_maps import PATH_DF_DEP_R0, PATH_PT_FR_TEST_LAST
 from my_helpers.meteo import PATH_DF_METEO_FR
 from my_helpers.meteo import PATH_JSON_METEO_TEMP_FR
-
-#PATH_METEO_SPARK = os.path.join(PATH_PROJECT, 'meteo_spark.py')
+from my_helpers.meteo import PATH_METEO_SPARK
+BUCKET_NAME = settings.BUCKET_NAME
 
 # for DAG
 default_args = {
     'owner': 'gregory',
-    'start_date': datetime.datetime(2020, 9, 25),
+    'start_date': datetime.datetime(2020, 10, 16),
     'retry_delay': datetime.timedelta(minutes=5),
 }
 # For EMR
+FILE_SPARK = ntpath.basename(PATH_METEO_SPARK)
 SPARK_STEPS = [
     {
         'Name': 'Application Spark',
@@ -57,7 +64,7 @@ SPARK_STEPS = [
         'HadoopJarStep': {
             'Jar': 'command-runner.jar',
             'Args': ["spark-submit","--deploy-mode","cluster",
-                "s3://app-covid-visu-bucket/meteo_spark_emr.py"],
+                f"s3://{BUCKET_NAME}/{FILE_SPARK}"],
         },
     }
 ]
@@ -113,8 +120,8 @@ JOB_FLOW_OVERRIDES = {
         'Ec2SubnetId': 'subnet-6583b71f',
         'EmrManagedMasterSecurityGroup': 'sg-0c777b0f367bb7681',
         'EmrManagedSlaveSecurityGroup': 'sg-09fe5f546208999ab',
-        'Steps': SPARK_STEPS,
     },
+    'Steps': SPARK_STEPS,
     'JobFlowRole': 'EMR_EC2_DefaultRole',
     'ServiceRole': 'EMR_DefaultRole',
     'AutoScalingRole': 'EMR_AutoScaling_DefaultRole',
@@ -133,7 +140,7 @@ JOB_FLOW_OVERRIDES = {
 
 
 # Using the context manager alllows you not to duplicate the dag parameter in each operator
-with DAG('app_visu_covid_update', default_args=default_args, 
+with DAG('app_visu_covid_upd_emr', default_args=default_args, 
     schedule_interval='@daily') as my_dag:
 
     start_task = DummyOperator(
@@ -155,12 +162,21 @@ with DAG('app_visu_covid_update', default_args=default_args,
         python_callable=update_data_meteo_disk,
         dag=my_dag)  
 
+    upload_to_S3_meteo_task = PythonOperator(
+        task_id='upload_to_S3_meteo',
+        python_callable=upload_files_to_S3_with_hook,
+        op_kwargs={
+            'filenames': [PATH_DF_METEO_FR, PATH_JSON_METEO_TEMP_FR, 
+            PATH_METEO_SPARK],
+            'bucket_name': BUCKET_NAME,
+        },
+        dag=my_dag)
     '''precompute_data_meteo_spark_task = BashOperator(
         task_id='precompute_data_meteo_spark',
         bash_command='/usr/local/opt/apache-spark/bin/spark-submit ' + \
             PATH_METEO_SPARK,
         dag=my_dag)'''
-
+    
     precompute_data_meteo_emr_task = EmrCreateJobFlowOperator(
         task_id='precompute_data_meteo_emr',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
@@ -175,9 +191,18 @@ with DAG('app_visu_covid_update', default_args=default_args,
         aws_conn_id='aws_default',
     )
 
+    download_files_from_S3_task = PythonOperator(
+        task_id='download_from_S3_meteo',
+        python_callable=download_files_from_S3,
+        op_kwargs={
+            'filenames': [PATH_DF_METEO_FR],
+            'bucket_name': BUCKET_NAME,
+        },
+        dag=my_dag)
+
     prepare_features_task = PythonOperator(
         task_id='prepare_features',
-        python_callable=prepare_features_disk,
+        python_callable=prepare_features_disk_emr,
         dag=my_dag) 
 
     prepare_plot_data_map_task = PythonOperator(
@@ -192,13 +217,14 @@ with DAG('app_visu_covid_update', default_args=default_args,
         op_kwargs={
             'filenames': [PATH_DF_GOUV_FR_RAW, PATH_DF_POS_FR, PATH_DF_TEST_FR,
                 PATH_DF_FEAT_FR, PATH_DF_DEP_R0, PATH_PT_FR_TEST_LAST, 
-                PATH_DF_METEO_FR, PATH_JSON_METEO_TEMP_FR],
-            'bucket_name': 'app-covid-visu-bucket',
+                PATH_DF_METEO_FR],
+            'bucket_name': BUCKET_NAME,
         },
         dag=my_dag)
 
     # Use arrows to set dependencies between tasks
     start_task >> get_data_gouv_fr_task >> precompute_data_pos_task >> \
-        update_data_meteo_task >> precompute_data_meteo_emr_task >> \
-        emr_job_sensor >> prepare_features_task >> \
+        update_data_meteo_task >> upload_to_S3_meteo_task >> \
+        precompute_data_meteo_emr_task >> emr_job_sensor >> \
+        download_files_from_S3_task >> prepare_features_task >> \
         prepare_plot_data_map_task >> upload_to_S3_task

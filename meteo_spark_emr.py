@@ -30,7 +30,7 @@ import pandas as pd
 # definitions 
 BUCKET_NAME = 'app-covid-visu-bucket'
 MODE_S3 = True
-MODE_TEST = True
+MODE_TEST = False
 
 if MODE_S3:
         PATH_TO_SAVE_DATA = f's3://{BUCKET_NAME}' 
