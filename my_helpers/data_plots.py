@@ -278,8 +278,8 @@ def check_update():
     else:
         flag_meteo = True
 
-    # update only if more than 24 hours without update
-    if ((dtime_now.days > 0) | flag_meteo):
+    # update only if more than 6 hours without update
+    if ((dtime_now.total_seconds() > 6*3600) | flag_meteo):
         flag_old = True
         # update data from external 
         print("Maybe new data available...")
