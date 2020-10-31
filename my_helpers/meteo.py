@@ -17,9 +17,14 @@ from my_helpers.dates import days_between
 # DEFINITIONS
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
 PATH_JSON_METEO_FR = os.path.join(PATH_TO_SAVE_DATA, 'data_meteo_fr.json')
+PATH_JSON_METEO_FR_OLD = os.path.join(PATH_TO_SAVE_DATA, 
+    'data_meteo_fr_old.json')
 PATH_JSON_METEO_TEMP_FR = os.path.join(PATH_TO_SAVE_DATA, 
     'data_meteo_temp_fr.json')
+PATH_JSON_METEO_TEMP_FR_OLD = os.path.join(PATH_TO_SAVE_DATA, 
+    'data_meteo_temp_fr_old.json')
 PATH_DF_METEO_FR = os.path.join(PATH_TO_SAVE_DATA, 'df_meteo_fr.csv')
+PATH_DF_METEO_FR_OLD = os.path.join(PATH_TO_SAVE_DATA, 'df_meteo_fr_old.csv')
 PATH_METEO_SPARK = os.path.join(PATH_TO_SAVE_DATA, 'meteo_spark_emr.py') 
 
 # For METEO
@@ -149,14 +154,14 @@ def calc_list_mean_field(data_meteo, fieldname, fun):
         list_mean.append(calculate_mean_field(list_field, fun))
     return list_mean
 
-def update_data_meteo(list_str_dates):
+def update_data_meteo(list_str_dates, path_json_meteo_fr=PATH_JSON_METEO_FR):
     '''Update with missing data from meteo france'''
     # meteo
-    if os.path.isfile(PATH_JSON_METEO_FR):
+    if os.path.isfile(path_json_meteo_fr):
         f_reload_from_start = False
         f_load_missing = False
         # load
-        with open(PATH_JSON_METEO_FR) as f:
+        with open(path_json_meteo_fr) as f:
             data_meteo = json.load(f)
         # check start date
         date_meteo_start = get_data_meteo_date_min(data_meteo)
@@ -208,24 +213,25 @@ def update_data_meteo(list_str_dates):
             data_meteo["records"] = data_meteo["records"] + \
                 data_meteo_new["records"]
         # save
-        with open(PATH_JSON_METEO_FR, 'w') as outfile:
+        with open(path_json_meteo_fr, 'w') as outfile:
             json.dump(data_meteo, outfile)
     else:
         print("Data meteo OK")
 
     return data_meteo
 
-def update_data_meteo_light(list_str_dates):
+def update_data_meteo_light(list_str_dates, path_df_meteo_fr=PATH_DF_METEO_FR,
+    path_json_meteo_temp_fr=PATH_JSON_METEO_TEMP_FR):
     '''
     Update with missing data from meteo france
     using df_meteo_fr instead of big meteo data in JSON format
     '''
     # meteo
-    if os.path.isfile(PATH_DF_METEO_FR):
+    if os.path.isfile(path_df_meteo_fr):
         f_reload_from_start = False
         f_load_missing = False
         # load
-        df_meteo_fr = pd.read_csv(PATH_DF_METEO_FR)
+        df_meteo_fr = pd.read_csv(path_df_meteo_fr)
         df_meteo_fr.index = df_meteo_fr["date"]
         # check start date
         date_meteo_start = df_meteo_fr["date"].min()
@@ -276,7 +282,7 @@ def update_data_meteo_light(list_str_dates):
 
     return data_meteo_new
 
-def precompute_data_meteo(data_meteo):
+def precompute_data_meteo(data_meteo): # NOT USED ANYMORE
     '''pre-compute data meteo'''
 
     list_t_min = calc_list_mean_field(data_meteo, "t", min)
@@ -301,14 +307,15 @@ def precompute_data_meteo(data_meteo):
 
     return df_meteo_fr
 
-def precompute_data_meteo_light(data_meteo=None):
+def precompute_data_meteo_light(data_meteo=None, 
+    path_df_meteo_fr=PATH_DF_METEO_FR):
     '''pre-compute data meteo
     using only new data 
     '''
 
     if data_meteo is None:
         # load old data 
-        df_meteo_fr = pd.read_csv(PATH_DF_METEO_FR)
+        df_meteo_fr = pd.read_csv(path_df_meteo_fr)
         df_meteo_fr.index = df_meteo_fr["date"]
         return df_meteo_fr
     
@@ -329,13 +336,15 @@ def precompute_data_meteo_light(data_meteo=None):
     df_meteo_fr_new.sort_values(by="date", inplace=True)
     df_meteo_fr_new.index = df_meteo_fr_new["date"]
 
-    # load old data 
-    df_meteo_fr = pd.read_csv(PATH_DF_METEO_FR)
-    df_meteo_fr.index = df_meteo_fr["date"]
-
-    # append new data 
-    df_meteo_fr = df_meteo_fr.append(df_meteo_fr_new, verify_integrity=True)
+    if os.path.isfile(path_df_meteo_fr):
+        # load old data 
+        df_meteo_fr = pd.read_csv(path_df_meteo_fr)
+        df_meteo_fr.index = df_meteo_fr["date"]
+        # append new data 
+        df_meteo_fr = df_meteo_fr.append(df_meteo_fr_new, verify_integrity=True)
+    else:
+        df_meteo_fr = df_meteo_fr_new
     # save df_meteo
-    df_meteo_fr.to_csv(PATH_DF_METEO_FR, index=False) 
+    df_meteo_fr.to_csv(path_df_meteo_fr, index=False) 
 
     return df_meteo_fr

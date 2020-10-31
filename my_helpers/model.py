@@ -24,7 +24,7 @@ from my_helpers.dates import add_days, generate_list_dates
 # plot
 NB_PERIOD_PLOT = settings.NB_PERIOD_PLOT
 # model parameters
-TRAIN_SPLIT = 135
+TRAIN_SPLIT = 151
 PAST_HISTORY= 14 # days used to predict next values in future
 FUTURE_TARGET = 7 # predict 3 days later
 STEP = 1

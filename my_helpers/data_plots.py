@@ -19,6 +19,8 @@ from my_helpers.dates import days_between, add_days, get_file_date
 from my_helpers.meteo import update_data_meteo_light
 from my_helpers.meteo import precompute_data_meteo_light
 from my_helpers.meteo import PATH_DF_METEO_FR
+from my_helpers.meteo import PATH_DF_METEO_FR_OLD
+from my_helpers.meteo import PATH_JSON_METEO_TEMP_FR_OLD
 from my_helpers.model import FUTURE_TARGET, TRAIN_SPLIT
 from my_helpers.model import update_pred_pos, update_pred_pos_all
 
@@ -28,9 +30,19 @@ URL_CSV_GOUV_FR = 'https://www.data.gouv.fr/' + \
     'fr/datasets/r/406c6a23-e283-4300-9484-54e78c8ae675'
 PATH_DF_GOUV_FR_RAW = PATH_TO_SAVE_DATA + '/' + 'df_gouv_fr_raw.csv'
 NB_POS_DATE_MIN_DF_FEAT = 140227 # on 12/05/2020
+NB_POS_DATE_MIN_DF_FEAT_OLD = NB_POS_DATE_MIN_DF_FEAT - 38892
+PATH_DF_GOUV_FR_RAW_OLD = os.path.join(PATH_TO_SAVE_DATA,'sources/csv_fr' ,
+    'donnees-tests-covid19-labo-quotidien-2020-05-29-19h00.csv')
+
+PATH_DF_GOUV_FR_OLD = os.path.join(PATH_TO_SAVE_DATA, 'df_gouv_fr_raw_old.csv')
 PATH_DF_POS_FR = PATH_TO_SAVE_DATA + '/' + 'df_pos_fr.csv' 
+PATH_DF_POS_FR_OLD = PATH_TO_SAVE_DATA + '/' + 'df_pos_fr_old.csv' 
 PATH_DF_TEST_FR = PATH_TO_SAVE_DATA + '/' + 'df_test_fr.csv'
-PATH_DF_FEAT_FR = PATH_TO_SAVE_DATA + '/' + 'df_feat_fr.csv' 
+PATH_DF_TEST_FR_OLD = PATH_TO_SAVE_DATA + '/' + 'df_test_fr_old.csv'
+PATH_DF_FEAT_FR = PATH_TO_SAVE_DATA + '/' + 'df_feat_fr.csv'
+PATH_DF_FEAT_FR_OLD = PATH_TO_SAVE_DATA + '/' + 'df_feat_fr_old.csv'
+DATE_START_NEW = "2020-05-13"
+
 NB_PERIOD_PLOT = settings.NB_PERIOD_PLOT
 NB_DAY_PLOT = FUTURE_TARGET * NB_PERIOD_PLOT
 from my_helpers.meteo import PATH_DF_METEO_FR
@@ -58,6 +70,43 @@ def get_data_gouv_fr():
 
     return df_gouv_fr_raw
 
+def apply_conv_age(str):
+    ''' Convert age classes to mean age
+    '''
+    #TODO : add precision with age of total pop"
+    dict_age = {"A": 14/2, 
+                "B": (15+44)/2,
+                "C": (45+64)/2,
+                "D": (65+74)/2,
+                "E": (75+100)/2}
+    return dict_age[str]
+    
+def get_old_data_gouv_fr():
+    '''
+    Get from Gouv SFP page data cases in France before May 2020
+    Clean & Save
+    '''
+    df_gouv_fr_raw_old = pd.read_csv(PATH_DF_GOUV_FR_RAW_OLD, sep=";")
+    # reformat to new format
+    df_gouv_fr_raw_old.rename(columns={"nb_test": "t",
+        "nb_pos": "p" },
+        inplace=True)
+    # patch : clear data in double !!!
+    df_gouv_fr_raw_old = \
+        df_gouv_fr_raw_old[df_gouv_fr_raw_old["clage_covid"] != 0]
+    df_gouv_fr_raw_old = \
+        df_gouv_fr_raw_old[df_gouv_fr_raw_old["clage_covid"] != "0"]
+    # "clage_covid": "cl_age90"
+    df_gouv_fr_raw_old["cl_age90"] = \
+        df_gouv_fr_raw_old["clage_covid"].apply(apply_conv_age)
+    # select until first date of new data DATE_START_NEW
+    df_gouv_fr_raw_old = \
+        df_gouv_fr_raw_old[df_gouv_fr_raw_old["jour"] < DATE_START_NEW]
+    # save
+    df_gouv_fr_raw_old.to_csv(PATH_DF_GOUV_FR_OLD, index=False)
+
+    return df_gouv_fr_raw_old
+
 def compute_sum_dep(df_in):
     df_in["daily"] = 0
     list_dep = []
@@ -68,7 +117,8 @@ def compute_sum_dep(df_in):
         df_in["daily"]  += df_in[dep_curr]
     return df_in
 
-def precompute_data_pos(df_gouv_fr_raw):
+def precompute_data_pos(df_gouv_fr_raw, nb_pos_start=NB_POS_DATE_MIN_DF_FEAT,
+        path_df_pos_fr=PATH_DF_POS_FR, path_df_test_fr=PATH_DF_TEST_FR):
     '''Pre-compute data from Sante Publique France'''
     # creation of table data : 't':tested 'p':positive
     # data =  f(line : date, dep / col: t) => f(line : date / col: dep = f(t)) 
@@ -104,9 +154,9 @@ def precompute_data_pos(df_gouv_fr_raw):
     df_pos_fr = compute_sum_dep(df_pos_fr)
     # add nb_cases confirmed cummulative sum
     arr_nb_cases = df_pos_fr["daily"].cumsum().values
-    df_pos_fr["nb_cases"] = NB_POS_DATE_MIN_DF_FEAT + arr_nb_cases
+    df_pos_fr["nb_cases"] = nb_pos_start + arr_nb_cases
     # save data pos
-    df_pos_fr.to_csv(PATH_DF_POS_FR, index=False)
+    df_pos_fr.to_csv(path_df_pos_fr, index=False)
 
     # prepare data tested
     df_test_fr = pt_fr_test["t"].copy()
@@ -118,7 +168,7 @@ def precompute_data_pos(df_gouv_fr_raw):
     # add cases sum
     df_test_fr = compute_sum_dep(df_test_fr)
     # save data tested
-    df_test_fr.to_csv(PATH_DF_TEST_FR, index=False)
+    df_test_fr.to_csv(path_df_test_fr, index=False)
 
     return df_pos_fr, df_test_fr
 
@@ -128,7 +178,15 @@ def precompute_data_pos_disk():
     df_gouv_fr_raw = load_data_gouv()
     precompute_data_pos(df_gouv_fr_raw)
 
-def prepare_features(df_feat_fr, df_pos_fr, df_test_fr):
+def precompute_old_data_pos_disk():
+    ''' Pre-compute old data from Sante Publique France from disk
+    '''
+    df_gouv_fr_raw_old = load_old_data_gouv()
+    precompute_data_pos(df_gouv_fr_raw_old, nb_pos_start=0, 
+        path_df_pos_fr=PATH_DF_POS_FR_OLD, path_df_test_fr=PATH_DF_TEST_FR_OLD)
+
+def prepare_features(df_feat_fr, df_pos_fr, df_test_fr, 
+        path_df_feat_fr=PATH_DF_FEAT_FR):
     '''Finalize preparation of model features df_feat_fr table 
     to input model.
     Result is saved only. no output.
@@ -151,7 +209,7 @@ def prepare_features(df_feat_fr, df_pos_fr, df_test_fr):
     df_feat_fr["nb_cases"] = df_pos_fr["nb_cases"].copy()
 
     # save for future uses
-    df_feat_fr.to_csv(PATH_DF_FEAT_FR, index=False)
+    df_feat_fr.to_csv(path_df_feat_fr, index=False)
 
 def prepare_features_disk():
     '''
@@ -201,6 +259,34 @@ def get_data_pos():
     # finalize features and save (df_feat_fr on disk)
     prepare_features(df_feat_fr, df_pos_fr, df_test_fr)
 
+def get_old_data_pos():
+    ''' Get Old data (before 13/05/2020)
+    1) Retrieve data from Sante Publique France direct CSV URL 
+        (updated every days but with 4 to 5 days delay...)
+    2) Proceed this data by departements (tested - positive)
+    3) Retrieve data from Méteo France
+    4) Proceed this data to have mean feature all over France every days
+    5) Proceed features data for model by combining all these data
+
+    Every databases are saved in CSV format.
+    '''
+    df_gouv_fr_raw_old = get_old_data_gouv_fr()
+    # creation of data tables : tested & positive
+    df_pos_fr, df_test_fr = precompute_data_pos(df_gouv_fr_raw_old, 
+        nb_pos_start=NB_POS_DATE_MIN_DF_FEAT_OLD, 
+        path_df_pos_fr=PATH_DF_POS_FR_OLD, path_df_test_fr=PATH_DF_TEST_FR_OLD)
+    # meteo
+    data_meteo = update_data_meteo_light(df_pos_fr.index.tolist(), 
+        path_df_meteo_fr=PATH_DF_METEO_FR_OLD,
+        path_json_meteo_temp_fr=PATH_JSON_METEO_TEMP_FR_OLD)
+    # create features for model
+    # pre-compute data meteo & add
+    df_feat_fr = precompute_data_meteo_light(data_meteo, 
+        path_df_meteo_fr=PATH_DF_METEO_FR_OLD)
+    # finalize features and save (df_feat_fr on disk)
+    prepare_features(df_feat_fr, df_pos_fr, df_test_fr, 
+        path_df_feat_fr=PATH_DF_FEAT_FR_OLD)
+
 # FOR data to plot
 def load_data_pos():
     '''
@@ -209,6 +295,15 @@ def load_data_pos():
     df_feat_fr = pd.read_csv(PATH_DF_FEAT_FR)
     df_feat_fr.index = df_feat_fr["date"]
     return df_feat_fr
+
+def load_old_data_pos():
+    '''
+    Load Old data positive cases France
+    '''
+    df_feat_fr_old = pd.read_csv(PATH_DF_FEAT_FR_OLD)
+    df_feat_fr_old.index = df_feat_fr_old["date"]
+    return df_feat_fr_old
+
 
 def load_data_gouv():
     '''
@@ -221,6 +316,14 @@ def load_data_gouv():
         df_gouv_fr_raw = get_data_gouv_fr()
 
     return df_gouv_fr_raw
+
+
+def load_old_data_gouv():
+    '''
+    Load old data gouv France
+    '''
+    df_gouv_fr_raw_old = pd.read_csv(PATH_DF_GOUV_FR_OLD, low_memory=False)
+    return df_gouv_fr_raw_old
 
 def update_pos(df_feat_fr):
     '''
@@ -243,6 +346,14 @@ def prepare_data_input(flag_update):
     str_data_date = "last data available: " + df_feat_fr["date"].max()
 
     return df_feat_fr, str_date_mdl, str_data_date
+
+def prepare_old_data_input(flag_update):
+    '''Prepare old data input'''
+    if flag_update:
+        get_old_data_pos()
+    # load from disk
+    df_feat_fr_old = load_old_data_pos()
+    return df_feat_fr_old
 
 def prepare_plot_data_pos(df_feat_fr, flag_update):
     '''Prepare data for plot positive cases'''

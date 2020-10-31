@@ -455,7 +455,7 @@ def startup_layout():
             
         html.Div(children=html.A(
             children="By Gregory LANG, Data Scientist Freelance",
-            href="http://greg.coolplace.fr/data-scientist-freelance", 
+            href="https://greg.coolplace.fr/data-scientist-freelance", 
             target="_blank"), style={'display': 'inline-block'}),
 
         dcc.Tabs(id='tabs-example', value='tab-1', children=[
