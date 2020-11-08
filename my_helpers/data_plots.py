@@ -288,7 +288,7 @@ def get_old_data_pos():
         path_df_feat_fr=PATH_DF_FEAT_FR_OLD)
 
 # FOR data to plot
-def load_data_pos():
+def load_data_pos(path_df_feat_fr=PATH_DF_FEAT_FR):
     '''
     Load data positive cases France
     '''

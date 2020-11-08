@@ -54,7 +54,7 @@ def get_data_meteo_by_list(list_date):
     for I, date_curr in enumerate(list_date):
         
         data_curr = get_data_meteo_by_date(date_curr)
-        
+        print("{}: {} records".format(date_curr, len(data_curr["records"])))
         if I:
             data_out["records"] = data_out["records"] + data_curr["records"]
         else:
@@ -271,10 +271,11 @@ def update_data_meteo_light(list_str_dates, path_df_meteo_fr=PATH_DF_METEO_FR,
         list_dates = list_str_dates
     # if download needed
     if list_dates is not None:
+        print(list_dates)
         data_meteo_new = get_data_meteo_by_list(list_dates)
         print(f'{len(data_meteo_new["records"])} records downloaded')
         # save
-        with open(PATH_JSON_METEO_TEMP_FR, 'w') as outfile:
+        with open(path_json_meteo_temp_fr, 'w') as outfile:
             json.dump(data_meteo_new, outfile)
     else:
         data_meteo_new = None
