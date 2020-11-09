@@ -229,6 +229,8 @@ def prepare_features_disk_emr():
     df_feat_fr = pd.read_csv(PATH_DF_METEO_FR)
     df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
     df_test_fr = pd.read_csv(PATH_DF_TEST_FR)
+    list_dates = df_pos_fr["date"].tolist()
+    df_feat_fr = extrapolate_df_meteo(df_feat_fr, list_dates)
     prepare_features(df_feat_fr, df_pos_fr, df_test_fr)
 
 def update_data_meteo_disk():
@@ -253,7 +255,7 @@ def get_data_pos():
     # creation of data tables : tested & positive
     df_pos_fr, df_test_fr = precompute_data_pos(df_gouv_fr_raw)
     # list dates 
-    list_dates = df_pos_fr.index.tolist()
+    list_dates = df_pos_fr["date"].tolist()
     # meteo
     data_meteo = update_data_meteo_light(list_dates)
     # create features for model
