@@ -18,6 +18,7 @@ import settings
 from my_helpers.dates import days_between, add_days, get_file_date
 from my_helpers.meteo import update_data_meteo_light
 from my_helpers.meteo import precompute_data_meteo_light
+from my_helpers.meteo import extrapolate_df_meteo
 from my_helpers.meteo import PATH_DF_METEO_FR
 from my_helpers.meteo import PATH_DF_METEO_FR_OLD
 from my_helpers.meteo import PATH_JSON_METEO_TEMP_FR_OLD
@@ -251,11 +252,15 @@ def get_data_pos():
     df_gouv_fr_raw = get_data_gouv_fr()
     # creation of data tables : tested & positive
     df_pos_fr, df_test_fr = precompute_data_pos(df_gouv_fr_raw)
+    # list dates 
+    list_dates = df_pos_fr.index.tolist()
     # meteo
-    data_meteo = update_data_meteo_light(df_pos_fr.index.tolist())
+    data_meteo = update_data_meteo_light(list_dates)
     # create features for model
     # pre-compute data meteo & add
-    df_feat_fr = precompute_data_meteo_light(data_meteo)
+    df_meteo_fr = precompute_data_meteo_light(data_meteo)
+    # extrapolation meteo
+    df_feat_fr = extrapolate_df_meteo(df_meteo_fr, list_dates)
     # finalize features and save (df_feat_fr on disk)
     prepare_features(df_feat_fr, df_pos_fr, df_test_fr)
 
@@ -292,7 +297,7 @@ def load_data_pos(path_df_feat_fr=PATH_DF_FEAT_FR):
     '''
     Load data positive cases France
     '''
-    df_feat_fr = pd.read_csv(PATH_DF_FEAT_FR)
+    df_feat_fr = pd.read_csv(path_df_feat_fr)
     df_feat_fr.index = df_feat_fr["date"]
     return df_feat_fr
 

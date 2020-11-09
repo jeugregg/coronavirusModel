@@ -349,3 +349,31 @@ def precompute_data_meteo_light(data_meteo=None,
     df_meteo_fr.to_csv(path_df_meteo_fr, index=False) 
 
     return df_meteo_fr
+
+# extrapolation meteo
+def extrapolate_df_meteo(df_meteo_fr_in, list_dates, 
+        path_df_meteo_fr=PATH_DF_METEO_FR):
+    '''
+    Extrapolate missing dates in meteo
+    '''
+    df_meteo_fr = df_meteo_fr_in.copy()
+    df_meteo_fr.index.name =''
+    if "extrap" not in df_meteo_fr.columns:
+        df_meteo_fr["extrap"] = 0
+    list_date_meteo = df_meteo_fr["date"].tolist()
+    row_before = df_meteo_fr.iloc[0].copy()
+    for date_curr in list_dates:
+        if date_curr not in list_date_meteo:
+            #row_before.index = [date_curr]
+            row_before["date"] = date_curr
+            row_before["extrap"] = 1
+            df_meteo_fr = df_meteo_fr.append(row_before, 
+                ignore_index=True)
+        row_before = df_meteo_fr[df_meteo_fr["date"] == date_curr].copy()
+    # sort if not consecutive dates
+    df_meteo_fr.sort_values(by=['date'], inplace=True)
+    df_meteo_fr.index = df_meteo_fr["date"]
+    # save df_meteo
+    df_meteo_fr.to_csv(path_df_meteo_fr, index=False) 
+
+    return df_meteo_fr
