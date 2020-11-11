@@ -73,7 +73,7 @@ def prepare_to_lambda(dataset):
     '''
     list_list_x = []
     nb_max = math.ceil(NB_PERIOD_PLOT)
-    I_start_pred = TRAIN_SPLIT - nb_max*FUTURE_TARGET
+    I_start_pred = dataset.shape[0] - nb_max*FUTURE_TARGET
     for I in range(nb_max):
         I_start = I_start_pred + I * FUTURE_TARGET - PAST_HISTORY
         I_end =   I_start_pred + I * FUTURE_TARGET
@@ -248,7 +248,7 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
     # convert in positive cases
     y_pos_pred = y_multi_pred * data_std[4] + data_mean[4]
 
-    # list od dates
+    # list of dates
     K_days = y_pos_pred.shape[1]
     print("K_days = ", K_days)
     print("y_pos_pred.shape = ", y_pos_pred.shape)
@@ -279,14 +279,14 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
     return df_plot_pred_all
 
 
-def create_list_past_hist(dataset):  
+def create_list_past_hist(dataset, nb_period_plot=NB_PERIOD_PLOT):  
     '''
     Prepare list of past histories
     '''
     list_x = []
     # prepare data : very last days
-    I_start_pred = TRAIN_SPLIT - NB_PERIOD_PLOT*FUTURE_TARGET
-    for I in range(NB_PERIOD_PLOT):
+    I_start_pred = dataset.shape[0] - nb_period_plot*FUTURE_TARGET
+    for I in range(nb_period_plot):
         I_start = I_start_pred + I * FUTURE_TARGET - PAST_HISTORY
         I_end =   I_start_pred + I * FUTURE_TARGET
         print(f"[{I_start} - {I_end}]")

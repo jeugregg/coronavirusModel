@@ -55,39 +55,44 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
     display_msg("create_fig_pos...")
     # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
-
     # Create and style traces
-    # new cases
-    fig.add_trace(go.Bar(x=df_plot["date"].astype(np.datetime64), 
-                        y=df_plot["pos"], 
-                        name="Daily", opacity=0.5), 
-                secondary_y=True)
     # total
     fig.add_trace(go.Scatter(x=df_plot["date"].astype(np.datetime64), 
                             y=df_plot["nb_cases"],
                         mode='lines+markers',
                         line_shape='linear',
+                        line_color="blue",
                         connectgaps=True, name="Total"),
                 secondary_y=False)
-
     fig.add_trace(go.Scatter(x=df_plot_pred_all["date"].astype(np.datetime64), 
                             y=df_plot_pred_all["nb_cases"],
                         mode='lines+markers',
                         line_shape='hv',
+                        line_color="red",
                         connectgaps=True, name="Total (estim.)"),
                 secondary_y=False)
-
     fig.add_trace(go.Scatter(x=df_plot_pred["date"].astype(np.datetime64), 
                             y=df_plot_pred["nb_cases"],
                         mode='lines+markers',
                         line_shape='hv',
+                        line_color="orange",
                         connectgaps=True, name="Total (future estim.)"),
                 secondary_y=False)
-
-
+    # new cases
+    fig.add_trace(go.Bar(x=df_plot["date"].astype(np.datetime64), 
+                        y=df_plot["pos"], 
+                        name="Daily", opacity=0.33, marker_color="blue"), 
+                secondary_y=True)
     fig.add_trace(go.Bar(x=df_plot_pred["date"].astype(np.datetime64), 
                 y=df_plot_pred["pos"], 
-                name="Daily (future estim.)", opacity=0.5), 
+                name="Daily (future estim.)", opacity=0.33, marker_color="orange"), 
+                secondary_y=True)
+    fig.add_trace(go.Scatter(x=df_plot_pred_all["date"].astype(np.datetime64), 
+                            y=df_plot_pred_all["pos"],
+                        mode='lines+markers',
+                        marker_symbol="cross",
+                        line_color="red", opacity=0.33,    
+                        connectgaps=True, name="Daily (estim.)"),
                 secondary_y=True)
 
     # Edit the layout
@@ -101,8 +106,6 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
     fig.update_layout(height=600)
 
     fig.update_yaxes(title_text="nb <b>Daily</b> cases", secondary_y=True)
-    #fig.update_yaxes(title_text="nb <b>Daily</b> cases", 
-    #                range=[0, 25000], secondary_y=True)
     display_msg("create_fig_pos END")
     return fig
 
