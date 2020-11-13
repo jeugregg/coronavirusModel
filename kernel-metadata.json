@@ -1,0 +1,17 @@
+{
+  "id": "jeugregg/coronavirus-visualization-modeling",
+  "id_no": 8225245,
+  "title": "Coronavirus Visualization & Modeling",
+  "code_file": "coronavirus-visualization-modeling.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_internet": true,
+  "keywords": [
+    "data visualization"
+  ],
+  "dataset_sources": ["jeugregg/covid19-france-sources"],
+  "kernel_sources": [],
+  "competition_sources": []
+}
