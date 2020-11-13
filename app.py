@@ -196,7 +196,7 @@ def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
      - pt_fr_test_last : pivot table : sum up last 14 days of confirmed cases
     '''
     display_msg("create_fig_map...")
-    lat_lon_fr =  {'lat':  46, 'lon': 2}
+    lat_lon_fr =  {'lat':  47, 'lon': 2}
     zoom_fr = 4.25
     mapbox_args_fr = {'center': lat_lon_fr, 
                     'style': 'carto-positron', 'zoom': zoom_fr}
