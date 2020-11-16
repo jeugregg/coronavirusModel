@@ -1,0 +1,18 @@
+# This file is a template, and might need editing before it works on your project.
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/python/tags/
+
+#commands to run in the Docker container before starting each job.
+before_script:
+    - python --version
+    - pip install -r requirements_light.txt
+# different stages in the pipeline
+stages:
+    - test
+
+test_job:
+    stage: test
+    script:
+        - pip install pytest --quiet
+        - pytest -v
+    image: python:3.7-slim
