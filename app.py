@@ -39,6 +39,12 @@ from my_helpers.data_maps import prepare_plot_data_map
 
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
 
+meta_tags=[{
+      'name': 'viewport',
+      'content': 'width=device-width, initial-scale=1.0'
+    }
+]
+
 # HELPER FUNCTIONS
 
 def display_msg(my_message):
@@ -370,7 +376,8 @@ def create_fig_rt_dep(dep_curr, df_code_dep,pt_fr_test_last, df_dep_r0):
 # APP DASH
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 server = flask.Flask(__name__)
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets, 
+    meta_tags=meta_tags)
 app.title = "App Covid Visu"
 
 
@@ -403,12 +410,13 @@ def startup_layout():
     
     # informations
     markdown_info = '''
-    ***Legend***  
-    `Daily`                 : Actual daily number of confirmed cases in France for past days  
+    ***Legend***    
     `Total`                 : Actual total number of confirmed cases in France for past days  
     `Total (estim.)`        : Estimated total number of confirmed cases in France for past days (by model)  
     `Total (future estim.)` : Estimated total number of confirmed cases in France for future days (by model)  
+    `Daily`                 : Actual daily number of confirmed cases in France for past days  
     `Daily (future estim.)` : Estimated daily number of confirmed cases in France for future days (by model)  
+    `Daily (estim.)`        : Estimated daily number of confirmed cases in France for past days (by model)  
     
     ***About Model***  
       
