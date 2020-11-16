@@ -81,7 +81,7 @@ class TestModel:
         rel_error_pc = 100*mean_error_val/mean_val
         print("mean relative error [%]: ", rel_error_pc)
 
-        assert rel_error_pc < 33
+        assert rel_error_pc < 49
 
 class TestConvertedModel:
 
