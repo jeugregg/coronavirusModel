@@ -4,6 +4,7 @@
 
 # built-in libs
 import os
+import shutil
 import math
 import datetime
 import json
@@ -30,6 +31,8 @@ PATH_DF_TEST_FR_TEST = os.path.join(PATH_TO_SAVE_DATA,
     'df_test_fr_test.csv')
 PATH_JSON_METEO_TEMP_FR_TEST = os.path.join(PATH_TO_SAVE_DATA, 
     'data_meteo_temp_fr_test.json')
+PATH_DF_METEO_FR_TEST_DEF = os.path.join(PATH_TO_SAVE_DATA, 
+    'df_meteo_fr_for_test.csv')
 PATH_DF_METEO_FR_TEST = os.path.join(PATH_TO_SAVE_DATA, 
     'df_meteo_fr_test.csv')
 PATH_DF_FEAT_FR_TEST = os.path.join(PATH_TO_SAVE_DATA,
@@ -47,6 +50,13 @@ print("liste dates from URL gouv.fr to be treated: ", list_dates)
 
 # TESTS
 class TestMeteo:
+
+    @classmethod
+    def setup_class(cls):
+        '''
+        Prepare initial meteo data
+        '''
+        shutil.copyfile(PATH_DF_METEO_FR_TEST_DEF, PATH_DF_METEO_FR_TEST)
 
     def test_update_data_meteo_light(self):
         df_meteo_fr = pd.read_csv(PATH_DF_METEO_FR_TEST)

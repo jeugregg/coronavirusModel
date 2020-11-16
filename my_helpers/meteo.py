@@ -364,12 +364,14 @@ def extrapolate_df_meteo(df_meteo_fr_in, list_dates,
     row_before = df_meteo_fr.iloc[0].copy()
     for date_curr in list_dates:
         if date_curr not in list_date_meteo:
-            #row_before.index = [date_curr]
             row_before["date"] = date_curr
             row_before["extrap"] = 1
             df_meteo_fr = df_meteo_fr.append(row_before, 
                 ignore_index=True)
         row_before = df_meteo_fr[df_meteo_fr["date"] == date_curr].copy()
+    
+    # final validation : if no extrap done, extrap is not defined => 0
+    df_meteo_fr.loc[df_meteo_fr["extrap"].isna(), "extrap"] = 0
     # sort if not consecutive dates
     df_meteo_fr.sort_values(by=['date'], inplace=True)
     df_meteo_fr.index = df_meteo_fr["date"]
