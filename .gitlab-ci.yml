@@ -32,3 +32,4 @@ build_job:
         - docker build --pull -t $CONTAINER_TEST_IMAGE .
         - docker push $CONTAINER_TEST_IMAGE
         - docker run -p 80:80 $CONTAINER_TEST_IMAGE
+    image: docker:19.03.12
