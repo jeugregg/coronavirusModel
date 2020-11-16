@@ -5,7 +5,7 @@
 #commands to run in the Docker container before starting each job.
 before_script:
     - python --version
-    - pip install -r requirements.txt
+    - pip install -r requirements_light.txt
 # different stages in the pipeline
 stages:
     - test
