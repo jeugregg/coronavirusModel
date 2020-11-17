@@ -16,6 +16,7 @@ import math
 import datetime
 import re
 import os
+import sys
 # import third party 
 import flask
 import dash
@@ -559,6 +560,18 @@ def display_click_data(clickData, n_clicks):
 
 if __name__ == '__main__':
     #app.run_server(debug=True)
-    app.run_server(host='0.0.0.0', debug=settings.MODE_DEBUG, port=80)
     app.config.suppress_callback_exceptions = True
+
+    # if mode test preparation app
+
+    if os.getenv("APP_MODE_ENV") is not None:
+        if os.getenv("APP_MODE_ENV") == "TEST":
+            print("Test App Preparation OK.")
+            sys.exit()
+
+    print("Run server :")
+    app.run_server(host='0.0.0.0', debug=settings.MODE_DEBUG, port=80)
+
+    #raise RuntimeError('Not running with the Werkzeug Server')
+
 
