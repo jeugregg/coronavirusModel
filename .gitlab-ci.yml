@@ -38,7 +38,8 @@ build_job:
         - docker run --env APP_MODE_ENV=TEST -p 80:80 $CONTAINER_TEST_IMAGE 
     image: docker:19.03.12
 
-publish:
+publish_job:
+    stage: publish
     image: 
         name: amazon/aws-cli
         entrypoint: [""]
