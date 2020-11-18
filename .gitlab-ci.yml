@@ -2,6 +2,9 @@
 # Official language image. Look for the different tagged releases at:
 # https://hub.docker.com/r/library/python/tags/
 
+include:
+    - template: AWS/Deploy-ECS.gitlab-ci.yml
+    
 # different stages in the pipeline
 stages:
     - test
@@ -33,7 +36,3 @@ build_job:
         - docker push $CONTAINER_TEST_IMAGE
         - docker run --env APP_MODE_ENV=TEST -p 80:80 $CONTAINER_TEST_IMAGE 
     image: docker:19.03.12
-
-include:
-  - template: AWS/Deploy-ECS.gitlab-ci.yml
-
