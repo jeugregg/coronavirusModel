@@ -52,8 +52,8 @@ publish_job:
         - docker --version
     script:
         - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-        - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE 
-        - docker tag $CONTAINER_RELEASE_IMAGE $DOCKER_REGISTRY/$APP_NAME:latest
+        - docker pull $CONTAINER_TEST_IMAGE
+        - docker tag $CONTAINER_TEST_IMAGE $DOCKER_REGISTRY/$APP_NAME:latest
         - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $DOCKER_REGISTRY
         - docker push $DOCKER_REGISTRY/$APP_NAME:latest
         - aws ecs update-service --cluster $CI_AWS_ECS_CLUSTER --service $CI_AWS_ECS_SERVICE --force-new-deployment
