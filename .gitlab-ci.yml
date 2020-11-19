@@ -12,6 +12,7 @@ variables:
     # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
+    # registry.gitlab.com/jeugregg/coronavirusmodel:master
     CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
     CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
     DOCKER_REGISTRY: 324466407431.dkr.ecr.us-east-2.amazonaws.com
@@ -35,7 +36,7 @@ build_job:
         - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
         - docker build --pull -t $CONTAINER_TEST_IMAGE .
         - docker push $CONTAINER_TEST_IMAGE
-        - docker run --env APP_MODE_ENV=TEST -p 80:80 $CONTAINER_TEST_IMAGE 
+        - docker run --env APP_MODE_ENV=TEST -p 80:80 $CONTAINER_TEST_IMAGE
     image: docker:19.03.12
 
 publish_job:
@@ -51,6 +52,7 @@ publish_job:
         - docker --version
     script:
         - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $DOCKER_REGISTRY
+        - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE 
         - docker tag $CONTAINER_RELEASE_IMAGE $DOCKER_REGISTRY/$APP_NAME:latest
         - docker push $DOCKER_REGISTRY/$APP_NAME:latest
         - aws ecs update-service --cluster $CI_AWS_ECS_CLUSTER --service $CI_AWS_ECS_SERVICE --force-new-deployment
