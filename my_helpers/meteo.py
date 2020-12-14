@@ -13,6 +13,7 @@ import urllib.request
 # project libraries
 import settings
 from my_helpers.dates import days_between
+from my_helpers.utils import clean_file
 
 # DEFINITIONS
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
@@ -233,6 +234,9 @@ def update_data_meteo_light(list_str_dates, path_df_meteo_fr=PATH_DF_METEO_FR,
         # load
         df_meteo_fr = pd.read_csv(path_df_meteo_fr)
         df_meteo_fr.index = df_meteo_fr["date"]
+        # exclude extrap val to try to download again
+        if "extrap" in df_meteo_fr.columns:
+            df_meteo_fr = df_meteo_fr[df_meteo_fr["extrap"] != True]
         # check start date
         date_meteo_start = df_meteo_fr["date"].min()
         delta_days = days_between(min(list_str_dates), date_meteo_start)
@@ -341,11 +345,31 @@ def precompute_data_meteo_light(data_meteo=None,
         # load old data 
         df_meteo_fr = pd.read_csv(path_df_meteo_fr)
         df_meteo_fr.index = df_meteo_fr["date"]
-        # append new data 
-        df_meteo_fr = df_meteo_fr.append(df_meteo_fr_new, verify_integrity=True)
+        
+        # if any rows have been extrapolated before : 
+        flag_extrapolated = False
+        if "extrap" in df_meteo_fr.columns:
+            if df_meteo_fr["extrap"].sum() > 0:
+                flag_extrapolated = True
+       
+        if flag_extrapolated:
+            list_dates_extrap = df_meteo_fr[df_meteo_fr["extrap"] == \
+                True]["date"]
+            for index, row in df_meteo_fr_new.iterrows(): 
+                if row["date"] in list_dates_extrap:
+                    # replace extrapolated by new data 
+                    df_meteo_fr.loc[row["date"]] = row
+                else:
+                    # append new data
+                    df_meteo_fr = df_meteo_fr.append(row)
+        else:            
+            # append new data 
+            df_meteo_fr = df_meteo_fr.append(df_meteo_fr_new, 
+                verify_integrity=True)
     else:
         df_meteo_fr = df_meteo_fr_new
     # save df_meteo
+    clean_file(path_df_meteo_fr, flag_copy=True)
     df_meteo_fr.to_csv(path_df_meteo_fr, index=False) 
 
     return df_meteo_fr
