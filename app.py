@@ -311,7 +311,7 @@ def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
     display_msg("create_fig_map END.")
     return fig
 
-def create_fig_rt_dep(dep_curr, df_code_dep,pt_fr_test_last, df_dep_r0):
+def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
     
     '''Rt evolution plots for one departement
     
@@ -366,11 +366,13 @@ def create_fig_rt_dep(dep_curr, df_code_dep,pt_fr_test_last, df_dep_r0):
 
     fig.update_layout(title="<b>{}</b> : ".format(dep_curr) + '<br>' + \
         subtitle_curr,
+        yaxis_title='Rt',
         showlegend=False,
         font=dict(
             size=12,
         )
     )
+
     display_msg("create_fig_rt_dep END.")
     return fig
 
