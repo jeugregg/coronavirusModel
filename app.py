@@ -23,6 +23,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
+from dash.exceptions import PreventUpdate
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -361,22 +362,25 @@ def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
     fig.add_annotation(
                 x=0,
                 y=-0.18,
-                text="<i>(Click on Map to Update this Curve)</i>")
+                text="<i>Click on Map to Update this Curve<br> " + \
+                    'or Click on "France" button for global country Curve</i>')
     fig.update_annotations(dict(
                 xref="paper",
                 yref="paper",
                 showarrow=False
     ))
 
-    subtitle_curr = "Reproduction nb. Rt: " + \
+    subtitle_curr = "Rt: " + \
                     "<b>{:.2f}</b> ".format(df_dep_r0[dep_num_curr][-1]) + \
-                    '({})<br>'.format(df_dep_r0['date'].max())  + \
-                    "Confirmed cases: <b>{}</b>".format(pt_fr_test_last.loc[ \
+                    'on {}<br>'.format(df_dep_r0['date'].max())  + \
+                    "sum cases: <b>{}</b>".format(pt_fr_test_last.loc[ \
                     pt_fr_test_last.dep == dep_num_curr, "p"].values[0]) + \
                         " (last 14 days)"
 
-    fig.update_layout(title="<b>{}</b> : ".format(dep_curr) + '<br>' + \
-        subtitle_curr,
+    fig.update_layout(
+        title=dict(text="<b>Reprod. nb.</b>: <b>{}</b>".format(dep_curr) + \
+            '<br>' + subtitle_curr, 
+            xanchor="center", x=0.5, yanchor="top", y=0.95),
         yaxis_title='Rt',
         showlegend=False,
         font=dict(
@@ -419,22 +423,34 @@ def create_fig_rt_fr(df_feat_fr):
                                  line=dict(color="red", dash='dash'),
                                  hoverinfo="skip"))
 
-    subtitle_curr = "Reproduction nb. Rt: " + \
+    subtitle_curr = "Rt: " + \
                     "<b>{:.2f}</b> ".format(ser_rt.values[-1]) + \
-                    '({})<br>'.format(ser_rt.index.max())  + \
-                    "Confirmed cases: <b>{}</b>".format(sum_last) + \
+                    'on {}<br>'.format(ser_rt.index.max())  + \
+                    "sum cases: <b>{}</b>".format(sum_last) + \
                         " (last 14 days)"
 
-    fig.update_layout(title="<b>France</b> : " + '<br>' + \
+    fig.update_layout(
+        title=dict(text="<b>Reprod. nb.</b>: <b>France</b> : " + '<br>' + \
         subtitle_curr,
+        xanchor="center", x=0.5, yanchor="top", y=0.95),
         yaxis_title='Rt',
         showlegend=False,
         font=dict(
-            size=12,
+            size=12
         )
     )
-
+    
     fig.update_yaxes(title_standoff=0)
+
+    fig.add_annotation(
+                x=0,
+                y=-0.18,
+                text="<i>Click on Map to Update this Curve</i>")
+    fig.update_annotations(dict(
+                xref="paper",
+                yref="paper",
+                showarrow=False
+    ))
 
     display_msg("create_fig_rt_fr END.")
     return fig
@@ -473,7 +489,8 @@ def create_fig_pos_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0,
     fig.add_annotation(
                 x=0,
                 y=-0.18,
-                text="<i>(Click on Map to Update this Curve)</i>")
+                text="<i>Click on Map to Update this Curve<br>" + \
+                    "Curve for global country not available...</i>")
     fig.update_annotations(dict(
                 xref="paper",
                 yref="paper",
@@ -482,8 +499,8 @@ def create_fig_pos_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0,
 
     subtitle_curr = \
         f'<i>{df_dep_r0["date"].max()}:</i> ' + \
-        'Rt:<b>{:.2f}</b>'.format(df_dep_r0[dep_num_curr][-1]) + \
-        "<br>14days-sum:<b>{:.0f}</b>".format(pos_mean.values[-1])
+        'Rt: <b>{:.2f}</b>'.format(df_dep_r0[dep_num_curr][-1]) + \
+        "<br>14days-sum:<b> {:.0f}</b>".format(pos_mean.values[-1])
 
     fig.update_layout(showlegend=True, font=dict(size=12),
         title=dict(text=f"New cases: <b>{dep_curr}</b><br>" + \
@@ -506,6 +523,60 @@ def create_fig_pos_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0,
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
     #fig.update_layout(height=600)
     display_msg("create_fig_rt_dep END.")
+    return fig
+
+def create_fig_pos_rate_fr(df_feat_fr):
+    '''
+    data : 
+     - df_feat_fr (date,  [date, pos , test, age_pos] )
+
+    pos_rate =  100*df_feat_fr["pos"] / df_feat_fr["test"]
+
+    '''
+    display_msg("create_fig_pos_dep ...")
+    rate_pos = 100*df_feat_fr["pos"] / df_feat_fr["test"]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Scatter(x=df_feat_fr["date"], 
+        y=rate_pos.values,
+        mode='lines', name="pos. rate", line=dict(color="red"),
+        fill='tozeroy'), secondary_y=False)
+
+    fig.add_trace(go.Scatter(x=df_feat_fr["date"], 
+            y=df_feat_fr["age_pos"],
+            mode='lines', name='pos. age', 
+            line=dict(color="blue")), secondary_y=True)
+
+    subtitle_curr = \
+        f'<i>{df_feat_fr["date"].max()}:</i> ' + \
+        'pos. rate:<b> {:.1f}</b>'.format(rate_pos.values[-1]) + \
+        " %<br>mean pos. age:<b> {:.1f}</b>".format(df_feat_fr["age_pos"] \
+            .values[-1])
+
+    fig.update_layout(showlegend=True, font=dict(size=12),
+        title=dict(text=f"Positive rate and age: <b>FRANCE</b><br>" + \
+        subtitle_curr,
+        xanchor="center", x=0.5, yanchor="top", y=0.95)
+    )
+
+    fig.update_yaxes({"color": "red",}, secondary_y=False)
+
+    fig.update_yaxes({"color": "blue"}, secondary_y=True)
+    fig.update_layout(margin={"r":0,"t":70, "l":50}) 
+    fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
+
+    fig.add_annotation(
+                x=0,
+                y=-0.18,
+                text="<i>Only global country Curve available<br></i>")
+    fig.update_annotations(dict(
+                xref="paper",
+                yref="paper",
+                showarrow=False
+    ))
+    display_msg("create_fig_rt_dep END.")
+
     return fig
 
 # APP DASH
@@ -626,7 +697,13 @@ def startup_layout():
         html.Div(id='predicted-value-all', style={'display': 'none'},
             children=jsonifed_pred(df_plot_pred_all)),
         html.Div(id='graph_type', style={'display': 'none'},
-            children=0),    
+            children=0),
+        html.Div(id='id_button', style={'display': 'none'},
+            children=0), 
+        html.Div(id='mode_country', style={'display': 'none'},
+            children=0),
+        html.Div(id='dep', style={'display': 'none'},
+            children=""),    
         html.Div(id='info', children=dcc.Markdown(children=markdown_info))
         ])
 
@@ -677,17 +754,26 @@ def display_click_data(clickData, n_clicks):"""
 
 @app.callback(
     [Output('covid-rt-dep-graph', 'figure'),
-    Output('graph_type', 'children')],
+    Output('graph_type', 'children'), 
+    Output('id_button', 'children'),
+    Output('mode_country', 'children'),
+    Output('dep', 'children')],
     [Input('covid-rt-map', 'clickData'), 
     Input('div-rt-map', 'n_clicks')], 
     [dash.dependencies.State('covid-rt-map', 'figure'),
-    dash.dependencies.State('graph_type', 'children')])
-def display_click_data(clickData, n_clicks, fig, graph_type):
+    dash.dependencies.State('graph_type', 'children'),
+    dash.dependencies.State('id_button', 'children'),
+    dash.dependencies.State('mode_country', 'children'),
+    dash.dependencies.State('dep', 'children'),
+    dash.dependencies.State('covid-rt-map', 'hoverData')])
+def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
+    mode_country_old, dep_old, hoverData):
+    display_msg(" ")
     display_msg("display_click_data ...")
-
+    print("clickData: ", clickData)
+    print("hoverData: ", hoverData)
     # check current dept.:
     try:
-        print("clickData : ", clickData)
         dep_curr = clickData["points"][0]["location"]
     except:
         dep_curr = "Paris"
@@ -696,33 +782,65 @@ def display_click_data(clickData, n_clicks, fig, graph_type):
     # treat graph type :
     (a,) = fig["layout"]["updatemenus"]
     id_button = a["active"]
-    print('fig["layout"]["updatemenus"].active : ', id_button)
-    print("current graph_type :", graph_type)
-
     if id_button < 3:
         graph_type = id_button
+    else:
+        graph_type = graph_type_old
 
-    # prepare plot data for MAPS
-    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
-        prepare_plot_data_map(False)
-    display_msg("display_click_data END.")
+    print('id_button (old): ', id_button_old)
+    print('id_button (new): ', id_button)
+    print("graph_type (old):", graph_type_old)
+    print("graph_type (new):", graph_type)
 
-    if graph_type == 2:
-        if (id_button == 4):
+    # if click change to France button, display Country not dept.
+    if (id_button_old !=4) & (id_button==4):
+        mode_country = 1
+    # if no change for buttons or graph type but change dept
+    # then displays dept.
+    elif (id_button_old == id_button) & (graph_type_old == graph_type):
+        if (dep_curr != dep_old):
+            mode_country = 0
+        else:
+            mode_country = 1
+    else:
+        mode_country = mode_country_old
+    print("mode_country: ", mode_country)
+    # si type graph Rt
+    if (graph_type == 2):
+        if (mode_country == 1): #(id_button == 4) | (clickData is None):
             # load from disk
             df_feat_fr = load_data_pos()
             fig_out = create_fig_rt_fr(df_feat_fr)
         else:
+            # prepare plot data for MAPS
+            df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+                prepare_plot_data_map(False)
             fig_out = create_fig_rt_dep(dep_curr, df_code_dep, 
                     pt_fr_test_last, df_dep_r0)
-                
+    # user had just click on  "Test" button, only country graph available
+    #elif (graph_type_old != 1) &  (id_button == 1):
+    elif (graph_type == 1):
+        df_feat_fr = load_data_pos()
+        fig_out = create_fig_pos_rate_fr(df_feat_fr)
+    # user in mode Confirmed, only dept. available 
+    #elif (id_button == 0):
     else:
+        # if user in mode "Confirmed"
+        # prepare plot data for MAPS
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+            prepare_plot_data_map(False)
         df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
         df_pos_fr.index = df_pos_fr["date"]
         fig_out = create_fig_pos_dep(dep_curr, df_code_dep, 
-                    pt_fr_test_last, df_dep_r0, df_pos_fr)       
+                    pt_fr_test_last, df_dep_r0, df_pos_fr)
+    '''else:
+        print("PreventUpdate.")
+        raise PreventUpdate  ''' 
 
-    return fig_out, graph_type
+    display_msg("display_click_data END.")
+    if dep_curr is None:
+        dep_curr =""
+    return fig_out, graph_type, id_button, mode_country, dep_curr
     
 
 if __name__ == '__main__':

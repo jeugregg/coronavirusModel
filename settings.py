@@ -4,7 +4,7 @@
 import ntpath
 
 # General Definition 
-MODE_DEBUG = True # default = False 
+MODE_DEBUG = False # default = False 
 MODE_FORCE_UPDATE = False # default = False 
 PREDICT = True # default = True 
 MODEL_TFLITE = True # default = True 

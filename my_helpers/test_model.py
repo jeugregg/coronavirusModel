@@ -42,6 +42,7 @@ TRAIN_SPLIT = model.TRAIN_SPLIT
 FUTURE_TARGET = model.FUTURE_TARGET
 STEP = model.STEP
 
+ERROR_REL_MAX = 56 # in %
 
 # prepare test
 
@@ -81,7 +82,7 @@ class TestModel:
         rel_error_pc = 100*mean_error_val/mean_val
         print("mean relative error [%]: ", rel_error_pc)
 
-        assert rel_error_pc < 49
+        assert rel_error_pc < ERROR_REL_MAX
 
 class TestConvertedModel:
 
