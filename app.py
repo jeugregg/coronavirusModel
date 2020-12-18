@@ -685,9 +685,12 @@ def startup_layout():
             figure=create_fig_map(pt_fr_test_last, dep_fr, str_date_last), 
                 ), style={'display': 'inline-block', 
                     'margin-right': 1}, n_clicks=0, className="app-map"),
-                html.Div(dcc.Graph(id='covid-rt-dep-graph',
-            figure=create_fig_rt_dep("Paris", df_code_dep,pt_fr_test_last, 
-                df_dep_r0)), style={'display': 'inline-block', 
+                html.Div(dcc.Loading(
+                id="loading-graph-map",
+                type="default",
+                children=dcc.Graph(id='covid-rt-dep-graph',
+                figure=create_fig_rt_dep("Paris", df_code_dep,pt_fr_test_last, 
+                df_dep_r0))), style={'display': 'inline-block', 
                 'margin-top': 0}, className="app-graph-map")
             ])
         ], style={'margin-top': 10}),
@@ -753,7 +756,7 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
 def display_click_data(clickData, n_clicks):"""
 
 @app.callback(
-    [Output('covid-rt-dep-graph', 'figure'),
+    [Output('loading-graph-map', 'children'),
     Output('graph_type', 'children'), 
     Output('id_button', 'children'),
     Output('mode_country', 'children'),
@@ -811,17 +814,20 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
             # load from disk
             df_feat_fr = load_data_pos()
             fig_out = create_fig_rt_fr(df_feat_fr)
+            #str_date_last = df_feat_fr["date"].max()
         else:
             # prepare plot data for MAPS
             df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
                 prepare_plot_data_map(False)
             fig_out = create_fig_rt_dep(dep_curr, df_code_dep, 
                     pt_fr_test_last, df_dep_r0)
+            #str_date_last = df_dep_r0["date"].max()
     # user had just click on  "Test" button, only country graph available
     #elif (graph_type_old != 1) &  (id_button == 1):
     elif (graph_type == 1):
         df_feat_fr = load_data_pos()
         fig_out = create_fig_pos_rate_fr(df_feat_fr)
+        #str_date_last = df_feat_fr["date"].max()
     # user in mode Confirmed, only dept. available 
     #elif (id_button == 0):
     else:
@@ -833,6 +839,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
         df_pos_fr.index = df_pos_fr["date"]
         fig_out = create_fig_pos_dep(dep_curr, df_code_dep, 
                     pt_fr_test_last, df_dep_r0, df_pos_fr)
+        #str_date_last = df_dep_r0["date"].max()
     '''else:
         print("PreventUpdate.")
         raise PreventUpdate  ''' 
@@ -840,7 +847,8 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
     display_msg("display_click_data END.")
     if dep_curr is None:
         dep_curr =""
-    return fig_out, graph_type, id_button, mode_country, dep_curr
+    return dcc.Graph(id='covid-rt-dep-graph', 
+            figure=fig_out), graph_type, id_button, mode_country, dep_curr
     
 
 if __name__ == '__main__':
