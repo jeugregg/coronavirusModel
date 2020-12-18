@@ -33,8 +33,13 @@ from my_helpers.dates import *
 from my_helpers.data_plots import prepare_data_input
 from my_helpers.data_plots import prepare_plot_data_pos
 from my_helpers.data_plots import check_update
+from my_helpers.data_plots import PATH_DF_POS_FR
+from my_helpers.data_plots import load_data_pos
 from my_helpers.model import FUTURE_TARGET, PAST_HISTORY
 from my_helpers.data_maps import prepare_plot_data_map
+from my_helpers.data_maps import calc_rt
+from my_helpers.data_maps import sum_mobile
+from my_helpers.data_maps import NB_DAYS_CV
 
 # DEFINITIONS
 
@@ -91,8 +96,8 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
                         name="Daily", opacity=0.33, marker_color="blue"), 
                 secondary_y=True)
     fig.add_trace(go.Bar(x=df_plot_pred["date"].astype(np.datetime64), 
-                y=df_plot_pred["pos"], 
-                name="Daily (future estim.)", opacity=0.33, marker_color="orange"), 
+            y=df_plot_pred["pos"], 
+            name="Daily (future estim.)", opacity=0.33, marker_color="orange"), 
                 secondary_y=True)
     fig.add_trace(go.Scatter(x=df_plot_pred_all["date"].astype(np.datetime64), 
                             y=df_plot_pred_all["pos"],
@@ -217,31 +222,30 @@ def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
 
     fig = go.Figure()
 
-
     # Add Traces
 
     fig.add_trace(
         go.Choroplethmapbox(geojson=dep_fr, name="positive",
-                                        locations=pt_fr_test_last["name"], 
-                                        featureidkey="properties.nom",
-                                        z=pt_fr_test_last["p"],
-                                        marker_opacity=0.7, marker_line_width=0))
+                                    locations=pt_fr_test_last["name"], 
+                                    featureidkey="properties.nom",
+                                    z=pt_fr_test_last["p"],
+                                    marker_opacity=0.7, marker_line_width=0))
 
     fig.add_trace(
         go.Choroplethmapbox(geojson=dep_fr, name="tested",
-                                        locations=pt_fr_test_last["name"], 
-                                        featureidkey="properties.nom",
-                                        z=pt_fr_test_last["t"],
-                                        marker_opacity=0.7, marker_line_width=0,
-                                        visible=False))
+                                    locations=pt_fr_test_last["name"], 
+                                    featureidkey="properties.nom",
+                                    z=pt_fr_test_last["t"],
+                                    marker_opacity=0.7, marker_line_width=0,
+                                    visible=False))
 
     fig.add_trace(
         go.Choroplethmapbox(geojson=dep_fr, name="Rt",
-                                        locations=pt_fr_test_last["name"], 
-                                        featureidkey="properties.nom",
-                                        z=pt_fr_test_last["R0"], zmin=.5, zmax=1.5,
-                                        marker_opacity=0.7, marker_line_width=0,
-                                        visible=False))
+                                    locations=pt_fr_test_last["name"], 
+                                    featureidkey="properties.nom",
+                                    z=pt_fr_test_last["R0"], zmin=.5, zmax=1.5,
+                                    marker_opacity=0.7, marker_line_width=0,
+                                    visible=False))
 
     annot_conf=[dict( \
         text="France : <b>Confirmed</b> cases (Total for 14 days before " + \
@@ -308,6 +312,14 @@ def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
 
     fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
     fig.update_layout(annotations=annot_conf)
+
+    fig.update_traces(colorbar=dict(thicknessmode="pixels", thickness=10,
+        len=0.8,
+        x=0.9,
+        xanchor="left",
+        xpad=0),
+        selector=dict(type='choroplethmapbox'))
+
     display_msg("create_fig_map END.")
     return fig
 
@@ -340,12 +352,11 @@ def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
                 fill='tozeroy'))
 
     fig.add_trace(go.Scatter(x=[df_dep_r0["date"][0], 
-                                df_dep_r0["date"][-1]], 
-                            y=[1,1],
-                            mode='lines', 
-                            line=dict(color="red", dash='dash'),
-                            hoverinfo="skip"))
-
+                                    df_dep_r0["date"][-1]], 
+                                 y=[1,1],
+                                 mode='lines', 
+                                 line=dict(color="red", dash='dash'),
+                                 hoverinfo="skip"))
 
     fig.add_annotation(
                 x=0,
@@ -362,7 +373,7 @@ def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
                     '({})<br>'.format(df_dep_r0['date'].max())  + \
                     "Confirmed cases: <b>{}</b>".format(pt_fr_test_last.loc[ \
                     pt_fr_test_last.dep == dep_num_curr, "p"].values[0]) + \
-                        " for 14 days"
+                        " (last 14 days)"
 
     fig.update_layout(title="<b>{}</b> : ".format(dep_curr) + '<br>' + \
         subtitle_curr,
@@ -373,6 +384,127 @@ def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
         )
     )
 
+    fig.update_yaxes(title_standoff=0)
+
+    display_msg("create_fig_rt_dep END.")
+    return fig
+
+def create_fig_rt_fr(df_feat_fr):
+    
+    '''Rt evolution plots for france
+    
+     data : 
+     - df_feat_fr (date,  [date, pos] )
+    '''
+    display_msg("create_fig_rt_fr ...")
+
+    ser_rt = calc_rt(df_feat_fr["date"], df_feat_fr["pos"], NB_DAYS_CV)
+    sum_last = df_feat_fr["pos"][-NB_DAYS_CV:].sum()
+
+    if (ser_rt[-1] > 1):
+        color_curr = "red"
+    else:
+        color_curr = "blue"
+        
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(x=ser_rt.index, y=ser_rt.values,
+                mode='lines', name="France", line=dict(color=color_curr),
+                fill='tozeroy'))
+
+    fig.add_trace(go.Scatter(x=[ser_rt.index[0], 
+                                    ser_rt.index[-1]], 
+                                 y=[1,1],
+                                 mode='lines', 
+                                 line=dict(color="red", dash='dash'),
+                                 hoverinfo="skip"))
+
+    subtitle_curr = "Reproduction nb. Rt: " + \
+                    "<b>{:.2f}</b> ".format(ser_rt.values[-1]) + \
+                    '({})<br>'.format(ser_rt.index.max())  + \
+                    "Confirmed cases: <b>{}</b>".format(sum_last) + \
+                        " (last 14 days)"
+
+    fig.update_layout(title="<b>France</b> : " + '<br>' + \
+        subtitle_curr,
+        yaxis_title='Rt',
+        showlegend=False,
+        font=dict(
+            size=12,
+        )
+    )
+
+    fig.update_yaxes(title_standoff=0)
+
+    display_msg("create_fig_rt_fr END.")
+    return fig
+
+def create_fig_pos_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0, 
+        df_pos_fr):
+    
+    '''Confirmed evolution plots for one departement
+    
+     data : 
+     - dep_curr : dept.name current (dept that you display)
+     - df_dep_r0 (date, [ date  [Rt by dep.] ])
+     - df_code_dep (-, [ dept.code, dept.name ])
+     - pt_fr_test_last (-, 
+        [ p, t,  dept.code,  dept.name,  cases,  R0 ]) for last 14 days
+     - df_pos_fr (date, [ date, [daily cases by dep.] ])
+    '''
+    display_msg("create_fig_pos_dep ...")
+    # choice dept.
+    dep_num_curr = df_code_dep.loc[df_code_dep["name"] == dep_curr, 
+                            "code"].values[0]
+    # calculation
+    ser_start , ser_end = create_date_ranges(df_pos_fr["date"], 14)
+    pos_mean = sum_mobile(df_pos_fr[dep_num_curr], ser_start, ser_end)
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Scatter(x=df_pos_fr["date"], y=df_pos_fr[dep_num_curr],
+                mode='lines', name="daily", line=dict(color="red"),
+                fill='tozeroy'), secondary_y=False)
+
+    fig.add_trace(go.Scatter(x=pos_mean.index, y=pos_mean,
+                mode='lines', name='14-days-sum', 
+                line=dict(color="blue")), secondary_y=True)
+
+    fig.add_annotation(
+                x=0,
+                y=-0.18,
+                text="<i>(Click on Map to Update this Curve)</i>")
+    fig.update_annotations(dict(
+                xref="paper",
+                yref="paper",
+                showarrow=False
+    ))
+
+    subtitle_curr = \
+        f'<i>{df_dep_r0["date"].max()}:</i> ' + \
+        'Rt:<b>{:.2f}</b>'.format(df_dep_r0[dep_num_curr][-1]) + \
+        "<br>14days-sum:<b>{:.0f}</b>".format(pos_mean.values[-1])
+
+    fig.update_layout(showlegend=True, font=dict(size=12),
+        title=dict(text=f"New cases: <b>{dep_curr}</b><br>" + \
+        subtitle_curr,
+        #yaxis_title='Daily cases',
+        xanchor="center", x=0.5, yanchor="top", y=0.95)
+    )
+
+    fig.update_yaxes({"color": "red",}, secondary_y=False)
+    #fig.update_yaxes(title_standoff=0, secondary_y=False)
+
+    fig.update_yaxes({"color": "blue"}, secondary_y=True)
+    #fig.update_yaxes({"color": "blue", "title_text": "14days-sum"}, 
+    #    secondary_y=True)
+    #fig.update_yaxes(title_standoff=0, secondary_y=True)
+    #fig.update_yaxes(automargin=True)
+    #fig.update_layout(margin={"r":0, "t":50, "l":70, "b":35})   
+    fig.update_layout(margin={"r":0,"t":70, "l":50}) 
+    #fig.update_layout(xaxis=dict(rangeslider=dict(visible=True)))
+    fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
+    #fig.update_layout(height=600)
     display_msg("create_fig_rt_dep END.")
     return fig
 
@@ -382,8 +514,6 @@ server = flask.Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, 
     meta_tags=meta_tags)
 app.title = "App Covid Visu"
-
-
 
 def startup_layout():
     '''
@@ -482,12 +612,12 @@ def startup_layout():
                 value='tab-2', children=[
                 html.Div(id="div-rt-map", children=dcc.Graph(id='covid-rt-map',
             figure=create_fig_map(pt_fr_test_last, dep_fr, str_date_last), 
-                ), style={'width': '59%', 'display': 'inline-block', 
-                    'margin-right': 1}, n_clicks=0),
+                ), style={'display': 'inline-block', 
+                    'margin-right': 1}, n_clicks=0, className="app-map"),
                 html.Div(dcc.Graph(id='covid-rt-dep-graph',
             figure=create_fig_rt_dep("Paris", df_code_dep,pt_fr_test_last, 
-                df_dep_r0)), style={'width': '39%', 'display': 'inline-block', 
-                'margin-top': 10})
+                df_dep_r0)), style={'display': 'inline-block', 
+                'margin-top': 0}, className="app-graph-map")
             ])
         ], style={'margin-top': 10}),
         # Hidden div inside the app that stores the intermediate value
@@ -495,6 +625,8 @@ def startup_layout():
             children=jsonifed_pred(df_plot_pred)),
         html.Div(id='predicted-value-all', style={'display': 'none'},
             children=jsonifed_pred(df_plot_pred_all)),
+        html.Div(id='graph_type', style={'display': 'none'},
+            children=0),    
         html.Div(id='info', children=dcc.Markdown(children=markdown_info))
         ])
 
@@ -536,29 +668,62 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
         create_fig_map(pt_fr_test_last, dep_fr, str_date_last)
 
 # click on map
+"""
 @app.callback(
     Output('covid-rt-dep-graph', 'figure'),
     [Input('covid-rt-map', 'clickData')], 
-    [dash.dependencies.State('div-rt-map', 'n_clicks')])
-def display_click_data(clickData, n_clicks):
-    display_msg("display_click_data ...")
-    # don't work  : block first click on map (need to click on buttons before)
-    '''if n_clicks < 1:
-        display_msg("Nothing to do!")
-        display_msg("display_click_data END.")
-        return dash.no_update'''
+    dash.dependencies.State('div-rt-map', 'n_clicks')])
+def display_click_data(clickData, n_clicks):"""
 
+@app.callback(
+    [Output('covid-rt-dep-graph', 'figure'),
+    Output('graph_type', 'children')],
+    [Input('covid-rt-map', 'clickData'), 
+    Input('div-rt-map', 'n_clicks')], 
+    [dash.dependencies.State('covid-rt-map', 'figure'),
+    dash.dependencies.State('graph_type', 'children')])
+def display_click_data(clickData, n_clicks, fig, graph_type):
+    display_msg("display_click_data ...")
+
+    # check current dept.:
     try:
+        print("clickData : ", clickData)
         dep_curr = clickData["points"][0]["location"]
     except:
         dep_curr = "Paris"
+    print(dep_curr)
+
+    # treat graph type :
+    (a,) = fig["layout"]["updatemenus"]
+    id_button = a["active"]
+    print('fig["layout"]["updatemenus"].active : ', id_button)
+    print("current graph_type :", graph_type)
+
+    if id_button < 3:
+        graph_type = id_button
 
     # prepare plot data for MAPS
     df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
         prepare_plot_data_map(False)
     display_msg("display_click_data END.")
-    return create_fig_rt_dep(dep_curr, df_code_dep, 
-                pt_fr_test_last, df_dep_r0)
+
+    if graph_type == 2:
+        if (id_button == 4):
+            # load from disk
+            df_feat_fr = load_data_pos()
+            fig_out = create_fig_rt_fr(df_feat_fr)
+        else:
+            fig_out = create_fig_rt_dep(dep_curr, df_code_dep, 
+                    pt_fr_test_last, df_dep_r0)
+                
+    else:
+        df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
+        df_pos_fr.index = df_pos_fr["date"]
+        fig_out = create_fig_pos_dep(dep_curr, df_code_dep, 
+                    pt_fr_test_last, df_dep_r0, df_pos_fr)       
+
+    return fig_out, graph_type
+    
 
 if __name__ == '__main__':
     #app.run_server(debug=True)

@@ -197,7 +197,7 @@ def update_pred_pos_all(df_feat_fr, from_disk=False):
     if os.path.isfile(PATH_DF_PLOT_PRED_ALL):
         df_plot_pred = pd.read_csv(PATH_DF_PLOT_PRED_ALL)
         df_plot_pred.index = df_plot_pred["date"]
-        if df_plot_pred["date"].min() <= df_feat_fr["date"].max():
+        if df_plot_pred["date"].max() < df_feat_fr["date"].max():
             from_disk = False
 
     if (not settings.PREDICT) | from_disk:

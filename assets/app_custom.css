@@ -1,0 +1,16 @@
+
+.app-map {
+        width: 54%;
+}
+.app-graph-map {
+    width: 44%;
+}
+
+@media screen and (max-width: 420px) {
+    .app-map {
+        width: 100%;
+    }
+    .app-graph-map {
+        width: 100%;
+    }
+}

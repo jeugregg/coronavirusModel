@@ -87,6 +87,26 @@ def mdl_R0_estim(nb_cases, nb_cases_init=1, nb_day_contag=14, delta_days=14):
                 raise
         return list_out
 
+def calc_rt(ser_date, ser_pos, nb_days_cv=NB_DAYS_CV):
+    '''
+    Calculation of Reproduction Number Rt from series dates 
+    and number of daily positive cases.
+
+    Takes sum of last NB_DAYS_CV days and the sum of its prior period 
+    to evaluate Rt.
+
+    Assuming that, for each period, the sum represents 
+    the number of contagious people on the last date of this period. 
+    '''
+    ser_start, ser_end = create_date_ranges(ser_date, nb_days_cv)
+    sum_pos = sum_mobile(ser_pos, ser_start, ser_end)
+    arr_rt = mdl_R0_estim(nb_cases=sum_pos.values[:-nb_days_cv] + \
+                          sum_pos.values[nb_days_cv:],
+                 nb_cases_init=sum_pos.values[:-nb_days_cv])
+    ser_rt = pd.Series(index=sum_pos.index[nb_days_cv:], data=arr_rt)
+    ser_rt = ser_rt[ser_rt.notna()]
+    return ser_rt
+
 def get_geo_fr():
     ###########
     # GEOJSON : dep france : source : https://france-geojson.gregoiredavid.fr/
@@ -150,7 +170,7 @@ def get_data_rt(df_gouv_fr_raw):
     pt_fr_test_last.index.name = ''
     pt_fr_test_last["dep"] = pt_fr_test_last.index
 
-    ser_start , ser_end = create_date_ranges(df_gouv_fr_raw["jour"], NB_DAYS_CV)
+    ser_start, ser_end = create_date_ranges(df_gouv_fr_raw["jour"], NB_DAYS_CV)
     #print("ser_start : ", ser_start)
     #print("ser_end : ", ser_end)
 
