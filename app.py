@@ -18,7 +18,7 @@ import re
 import os
 import sys
 # import third party 
-import flask
+#import flask
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -581,10 +581,11 @@ def create_fig_pos_rate_fr(df_feat_fr):
 
 # APP DASH
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-server = flask.Flask(__name__)
+#server = flask.Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, 
     meta_tags=meta_tags)
 app.title = "App Covid Visu"
+server = app.server
 
 def startup_layout():
     '''
@@ -656,18 +657,28 @@ def startup_layout():
     - Météo France : https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
 
     '''
+
+    str_country = "France"
     display_msg("STARTUP END.")
     return html.Div(children=[
-        html.H1(children='COVID-19 in France Dashboard: ' + \
-            'Datavisualization & Model'),
-        html.Div(children=html.Button('Update Data', id='update-data', 
+        html.H1(children=f'COVID-19 in {str_country} Dashboard: ' + \
+            'Datavisualization & Model', id="app-title"),
+        html.Div(children=dcc.Dropdown(
+            id='country-dropdown',
+            options=[
+                {'label': 'France', 'value': 'France'},
+                {'label': 'South Korea', 'value': 'South Korea', 
+                "disabled": True, "title": "Coming soon..."}
+            ],
+            value=str_country, clearable=False, searchable=False,
+            ), style={'float': 'left', 'width': 120, 'margin-right': 10}),
+        html.Div(children=html.Button('Update', id='update-data', 
         n_clicks=0), style={'display': 'inline-block', 'margin-right': 10}),
         html.Div(children=dcc.Loading(
             id="loading-fig-pos",
             type="default",
             children=html.Div(id="loading-output-1", children=str_data_date)), 
             style={'display': 'inline-block', 'margin-right': 10}),
-            
         html.Div(children=html.A(
             children="By Gregory LANG, Data Scientist Freelance",
             href="https://greg.coolplace.fr/data-scientist-freelance", 

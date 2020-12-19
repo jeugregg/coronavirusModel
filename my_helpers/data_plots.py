@@ -350,7 +350,7 @@ def prepare_data_input(flag_update):
     # last date of training
     str_date_mdl =  df_feat_fr.iloc[TRAIN_SPLIT]["date"]
     # date of last data
-    str_data_date = "last data available: " + df_feat_fr["date"].max()
+    str_data_date = "(up to: " + df_feat_fr["date"].max() + ")"
 
     return df_feat_fr, str_date_mdl, str_data_date
 
