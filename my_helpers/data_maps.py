@@ -3,20 +3,24 @@
 # IMPORT
 
 # import bluit-in
-import pandas as pd
-import numpy as np
 import math
 import json
 import datetime
+# import thirs-party
+import pandas as pd
+import numpy as np
 # import project modules
 import settings
 from my_helpers.dates import create_date_ranges, add_days
-from my_helpers.data_plots import load_data_gouv 
-
+from my_helpers.data_plots import load_data_gouv
+from my_helpers.utils import sum_mobile
+from my_helpers.model import mdl_R0_estim
+from my_helpers.model import NB_DAYS_CV, calc_rt_from_sum
 # DEFINITIONS
 
 # path local
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
+PATH_DF_DEP_SUM = PATH_TO_SAVE_DATA + '/' + 'df_dep_sum.csv'
 PATH_DF_DEP_R0 = PATH_TO_SAVE_DATA + '/' + 'df_dep_r0.csv'
 PATH_PT_FR_TEST_LAST = PATH_TO_SAVE_DATA + '/' + 'pt_fr_test_last.csv'
 PATH_DEP_FR = PATH_TO_SAVE_DATA + '/' + 'dep_fr.csv'
@@ -25,87 +29,8 @@ PATH_GEO_DEP_FR = PATH_TO_SAVE_DATA + '/sources/geofrance/' + 'departments.csv'
 URL_GEOJSON_DEP_FR = PATH_TO_SAVE_DATA + \
     '/sources/departements-avec-outre-mer_simple.json'
 
-NB_DAYS_CV = 14
 
 # HELPERS FUNCTIONS
-
-def sum_between(ser_val, str_date_start, str_date_end):
-    '''
-    sum up values in series between 2 dates (index = date)
-    '''
-    b_range = (ser_val.index >= str_date_start) & \
-        (ser_val.index <= str_date_end) 
-    
-    return ser_val[b_range].sum()
-
-def sum_mobile(ser_val, ser_start, ser_end):
-    '''
-    mobile sums between dates start & end for ser_val (index = date)
-    '''
-    ser_sum = ser_val.copy()*np.NaN
-    # for each date range
-    for date_end, date_start in zip(ser_end, ser_start):
-        # calculate sum 
-        sum_curr = sum_between(ser_val, date_start, date_end)
-        # store at date
-        ser_sum.loc[date_end] = sum_curr
-
-    return ser_sum
-
-def mdl_R0_estim(nb_cases, nb_cases_init=1, nb_day_contag=14, delta_days=14):
-    '''
-    R0 Model with exact formulation : 
-    Nb_cases(D) - Nb_cases(D-1) = Nb_cases(D-1) * R_0_CV / NB_DAY_CONTAG_CV
-    
-    Nb_cases(D) = Nb_cases(D0) * exp(R_0_CV / NB_DAY_CONTAG_CV * (D - DO))
-    
-    => 
-    R_0_CV = NB_DAY_CONTAG_CV / (D - DO) * ln( Nb_cases(D) / Nb_cases(D0))
-    
-    return R0
-    
-    '''
-    if type(nb_cases) == np.float64:
-        if nb_cases == 0:
-            return 0
-        return nb_day_contag / delta_days * math.log(nb_cases / \
-                                                     max(1, nb_cases_init))
-    else:
-        list_out = []
-        for I in range(len(nb_cases)):
-            try:
-                if nb_cases[I] == 0:
-                    list_out.append(0)
-                else:
-                    list_out.append(nb_day_contag / delta_days * \
-                        math.log(nb_cases[I] / max(1, nb_cases_init[I])))
-            except:
-                print("I = ",I)
-                print("nb_day_contag = ", nb_day_contag)
-                print("nb_cases[I] = ", nb_cases[I])
-                print("nb_cases_init[I] = ", nb_cases_init[I])
-                raise
-        return list_out
-
-def calc_rt(ser_date, ser_pos, nb_days_cv=NB_DAYS_CV):
-    '''
-    Calculation of Reproduction Number Rt from series dates 
-    and number of daily positive cases.
-
-    Takes sum of last NB_DAYS_CV days and the sum of its prior period 
-    to evaluate Rt.
-
-    Assuming that, for each period, the sum represents 
-    the number of contagious people on the last date of this period. 
-    '''
-    ser_start, ser_end = create_date_ranges(ser_date, nb_days_cv)
-    sum_pos = sum_mobile(ser_pos, ser_start, ser_end)
-    arr_rt = mdl_R0_estim(nb_cases=sum_pos.values[:-nb_days_cv] + \
-                          sum_pos.values[nb_days_cv:],
-                 nb_cases_init=sum_pos.values[:-nb_days_cv])
-    ser_rt = pd.Series(index=sum_pos.index[nb_days_cv:], data=arr_rt)
-    ser_rt = ser_rt[ser_rt.notna()]
-    return ser_rt
 
 def get_geo_fr():
     ###########
@@ -180,25 +105,17 @@ def get_data_rt(df_gouv_fr_raw):
         df_dep_sum[dep_curr] = sum_mobile(df_dep_pos[dep_curr], ser_start, 
             ser_end)
 
-    df_dep_r0 = pd.DataFrame(index=df_dep_pos.index, columns=["date"],
-                            data=df_dep_pos.index.tolist())
+    df_dep_sum.to_csv(PATH_DF_DEP_SUM, index=False)
 
-    for dep_curr in df_dep_sum.columns[1:]:
-        ser_val = df_dep_sum[dep_curr].copy()
-        date_min = add_days(ser_val.index.min(), NB_DAYS_CV) 
-        ser_r0 = ser_val.copy()*np.nan
-        for date_curr in ser_val[ser_val.index >= date_min].index:
-            date_0 = add_days(date_curr, -NB_DAYS_CV)
-            if not(np.isnan(ser_val.loc[date_0])):
-                sum_0 = ser_val.loc[date_0]
-                sum_1 = sum_0 + ser_val.loc[date_curr]
-                ser_r0.loc[date_curr] = mdl_R0_estim(nb_cases=sum_1, 
-                                                    nb_cases_init=sum_0,
-                                                    nb_day_contag=NB_DAYS_CV, 
-                                                    delta_days=NB_DAYS_CV)
-        df_dep_r0[dep_curr] = ser_r0
-        
-    df_dep_r0.dropna(inplace=True)
+    df_dep_r0 = pd.DataFrame(index=df_dep_sum.index, columns=["date"],
+                            data=df_dep_sum.index.tolist())
+    for dep_curr in df_dep_sum.columns:
+        if dep_curr != "date":
+            ser_rt = calc_rt_from_sum(df_dep_sum[dep_curr], NB_DAYS_CV)
+            ser_rt.name = dep_curr
+            df_dep_r0 = df_dep_r0.join(ser_rt)
+
+    df_dep_r0.to_csv(PATH_DF_DEP_R0, index=False)
 
     #################
     # last R0 for MAP
@@ -232,17 +149,19 @@ def get_data_rt(df_gouv_fr_raw):
     #
     # Nb cases(T):  sum of confirmed cases between T-28days -> T
 
-    pt_fr_test_last["R0"] = mdl_R0_estim(nb_cases=pt_fr_test_last["p_0"] + \
+    pt_fr_test_last["R0"] = pt_fr_test_last["p"] / pt_fr_test_last["p_0"]
+
+    '''pt_fr_test_last["R0"] = mdl_R0_estim(nb_cases=pt_fr_test_last["p_0"] + \
                                         pt_fr_test_last["p"] , 
                                         nb_cases_init=pt_fr_test_last["p_0"], 
                                         nb_day_contag=14, 
-                                        delta_days=14)
+                                        delta_days=14)'''
 
-    df_dep_r0.to_csv(PATH_DF_DEP_R0, index=False)
+    
 
     pt_fr_test_last.to_csv(PATH_PT_FR_TEST_LAST, index=False)
 
-    return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep
+    return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum
 
 def load_data_rt():
     '''
@@ -251,13 +170,19 @@ def load_data_rt():
     '''
     dep_fr, df_code_dep = get_geo_fr()
     df_dep_r0 = load_df_dep_r0()
+    df_dep_sum = load_df_dep_sum()
     pt_fr_test_last = load_pt_fr_test_last()
-    return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep
+    return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum
 
 def load_df_dep_r0():
     df_dep_r0 = pd.read_csv(PATH_DF_DEP_R0)
     df_dep_r0.index = df_dep_r0["date"]
     return df_dep_r0
+
+def load_df_dep_sum():
+    df_dep_sum = pd.read_csv(PATH_DF_DEP_SUM)
+    df_dep_sum.index = df_dep_sum["date"]
+    return df_dep_sum
 
 def load_pt_fr_test_last():
     return pd.read_csv(PATH_PT_FR_TEST_LAST)
@@ -268,9 +193,10 @@ def prepare_plot_data_map(flag_update=False):
     # rt plots
     if flag_update:
         df_gouv_fr_raw = load_data_gouv()
-        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum = \
             get_data_rt(df_gouv_fr_raw)
+        
     else:
-        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum = \
             load_data_rt()
-    return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep
+    return df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum

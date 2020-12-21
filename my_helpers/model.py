@@ -17,15 +17,19 @@ if settings.PREDICT:
         import tensorflow as tf
 
 # import project modules
-from my_helpers.dates import add_days, generate_list_dates
+from my_helpers.dates import add_days
+from my_helpers.dates import generate_list_dates
+from my_helpers.dates import create_date_ranges
+from my_helpers.utils import sum_mobile
 
 # DEFINITIONS 
+NB_DAYS_CV = 14 # state duration in nb days for contagious confirmed people
 
 # plot
 NB_PERIOD_PLOT = settings.NB_PERIOD_PLOT
 # model parameters
 TRAIN_SPLIT = 151
-PAST_HISTORY= 14 # days used to predict next values in future
+PAST_HISTORY= NB_DAYS_CV # days used to predict next values in future
 FUTURE_TARGET = 7 # predict 3 days later
 STEP = 1
 
@@ -39,6 +43,92 @@ PATH_DF_PLOT_PRED_ALL = PATH_TO_SAVE_DATA + '/' + 'df_plot_pred_all.csv'
 PATH_MDL_SINGLE_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_single_step_pos_fr"
 PATH_MDL_MULTI_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_multi_step_pos_fr"
 
+
+
+def mdl_R0_estim(nb_cases, nb_cases_init=1, nb_day_contag=14, delta_days=14):
+    '''
+    R0 Model with exact formulation : 
+    Nb_cases(D) - Nb_cases(D-1) = Nb_cases(D-1) * R_0_CV / NB_DAY_CONTAG_CV
+    
+    Nb_cases(D) = Nb_cases(D0) * exp(R_0_CV / NB_DAY_CONTAG_CV * (D - DO))
+    
+    => 
+    R_0_CV = NB_DAY_CONTAG_CV / (D - DO) * ln( Nb_cases(D) / Nb_cases(D0))
+    
+    return R0
+    
+    '''
+    if type(nb_cases) == np.float64:
+        if nb_cases == 0:
+            return 0
+        return nb_day_contag / delta_days * math.log(nb_cases / \
+                                                     max(1, nb_cases_init))
+    else:
+        list_out = []
+        for I in range(len(nb_cases)):
+            try:
+                if nb_cases[I] == 0:
+                    list_out.append(0)
+                else:
+                    list_out.append(nb_day_contag / delta_days * \
+                        math.log(nb_cases[I] / max(1, nb_cases_init[I])))
+            except:
+                print("I = ",I)
+                print("nb_day_contag = ", nb_day_contag)
+                print("nb_cases[I] = ", nb_cases[I])
+                print("nb_cases_init[I] = ", nb_cases_init[I])
+                raise
+        return list_out
+
+def calc_rt(ser_date, ser_pos, nb_days_cv=NB_DAYS_CV):
+    '''
+    Calculation of Reproduction Number Rt from series dates 
+    and number of daily positive cases.
+
+    Takes sum of last NB_DAYS_CV days and the sum of its prior period 
+    to evaluate Rt.
+
+    Assuming that, for each period, the sum represents 
+    the number of contagious people on the last date of this period. 
+    '''
+    #ser_start, ser_end = create_date_ranges(ser_date, nb_days_cv)
+    #sum_pos = sum_mobile(ser_pos, ser_start, ser_end)
+    sum_pos = calc_sum_mobile(ser_date, ser_pos, nb_days_cv=NB_DAYS_CV)
+    arr_rt = mdl_R0_estim(nb_cases=sum_pos.values[:-nb_days_cv] + \
+                          sum_pos.values[nb_days_cv:],
+                 nb_cases_init=sum_pos.values[:-nb_days_cv])
+    ser_rt = pd.Series(index=sum_pos.index[nb_days_cv:], data=arr_rt)
+    ser_rt = ser_rt[ser_rt.notna()]
+    return ser_rt
+
+
+def calc_rt_from_sum(sum_pos, nb_days_cv=NB_DAYS_CV):
+    '''
+    Calculation of Reproduction Number Rt from series dates 
+    and number of daily positive cases.
+
+    Takes sum of last NB_DAYS_CV days and the sum of its prior period 
+    to evaluate Rt.
+
+    Assuming that, for each period, the sum represents 
+    the number of contagious people on the last date of this period. 
+    
+    Rt = sum over 14 days [D-14 -> D] / sum over 14 days before [D-28 -> D-14]
+    '''
+
+    arr_rt = sum_pos.values[nb_days_cv:] / sum_pos.values[:-nb_days_cv]
+    
+    ser_rt = pd.Series(index=sum_pos.index[nb_days_cv:], data=arr_rt)
+    ser_rt = ser_rt[ser_rt.notna()]
+    return ser_rt
+
+def calc_sum_mobile(ser_date, ser_pos, nb_days_cv=NB_DAYS_CV):
+    '''
+    Calculation mobile sum on nb_days_cv days of ser_pos
+    '''
+    ser_start, ser_end = create_date_ranges(ser_date, nb_days_cv)
+    sum_pos = sum_mobile(ser_pos, ser_start, ser_end)
+    return sum_pos
 
 # For training and test
 def multivariate_data(dataset, target, start_index, end_index, history_size,

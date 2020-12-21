@@ -36,12 +36,11 @@ from my_helpers.data_plots import prepare_plot_data_pos
 from my_helpers.data_plots import check_update
 from my_helpers.data_plots import PATH_DF_POS_FR
 from my_helpers.data_plots import load_data_pos
+from my_helpers.model import calc_rt
+from my_helpers.model import NB_DAYS_CV
 from my_helpers.model import FUTURE_TARGET, PAST_HISTORY
 from my_helpers.data_maps import prepare_plot_data_map
-from my_helpers.data_maps import calc_rt
-from my_helpers.data_maps import sum_mobile
-from my_helpers.data_maps import NB_DAYS_CV
-
+from my_helpers.utils import sum_mobile
 # DEFINITIONS
 
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
@@ -402,9 +401,10 @@ def create_fig_rt_fr(df_feat_fr):
     '''
     display_msg("create_fig_rt_fr ...")
 
-    ser_rt = calc_rt(df_feat_fr["date"], df_feat_fr["pos"], NB_DAYS_CV)
-    sum_last = df_feat_fr["pos"][-NB_DAYS_CV:].sum()
-
+    #ser_rt = calc_rt(df_feat_fr["date"], df_feat_fr["pos"], NB_DAYS_CV)
+    ser_rt = df_feat_fr["Rt"]
+    #sum_last = df_feat_fr["pos"][-NB_DAYS_CV:].sum()
+    sum_last = df_feat_fr["sum_cases"].values[-1]
     if (ser_rt[-1] > 1):
         color_curr = "red"
     else:
@@ -456,7 +456,7 @@ def create_fig_rt_fr(df_feat_fr):
     return fig
 
 def create_fig_pos_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0, 
-        df_pos_fr):
+        df_pos_fr, df_dep_sum):
     
     '''Confirmed evolution plots for one departement
     
@@ -473,9 +473,9 @@ def create_fig_pos_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0,
     dep_num_curr = df_code_dep.loc[df_code_dep["name"] == dep_curr, 
                             "code"].values[0]
     # calculation
-    ser_start , ser_end = create_date_ranges(df_pos_fr["date"], 14)
-    pos_mean = sum_mobile(df_pos_fr[dep_num_curr], ser_start, ser_end)
-
+    #ser_start , ser_end = create_date_ranges(df_pos_fr["date"], 14)
+    #pos_mean = sum_mobile(df_pos_fr[dep_num_curr], ser_start, ser_end)
+    pos_mean = df_dep_sum[dep_num_curr]
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig.add_trace(go.Scatter(x=df_pos_fr["date"], y=df_pos_fr[dep_num_curr],
@@ -534,8 +534,8 @@ def create_fig_pos_rate_fr(df_feat_fr):
 
     '''
     display_msg("create_fig_pos_dep ...")
-    rate_pos = 100*df_feat_fr["pos"] / df_feat_fr["test"]
-
+    #rate_pos = 100*df_feat_fr["pos"] / df_feat_fr["test"]
+    rate_pos = df_feat_fr["rate_pos"]
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     fig.add_trace(go.Scatter(x=df_feat_fr["date"], 
@@ -610,8 +610,11 @@ def startup_layout():
         prepare_plot_data_pos(df_feat_fr, flag_update)
 
     # prepare plot data for MAPS
-    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum = \
         prepare_plot_data_map(flag_update)
+    
+    df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
+    df_pos_fr.index = df_pos_fr["date"]
     
     # informations
     markdown_info = '''
@@ -700,10 +703,12 @@ def startup_layout():
                 id="loading-graph-map",
                 type="default",
                 children=dcc.Graph(id='covid-rt-dep-graph',
-                figure=create_fig_rt_dep("Paris", df_code_dep,pt_fr_test_last, 
-                df_dep_r0))), style={'display': 'inline-block', 
+                figure=create_fig_pos_dep("Paris", df_code_dep, pt_fr_test_last, 
+                df_dep_r0, df_pos_fr, df_dep_sum
+                ))), style={'display': 'inline-block', 
                 'margin-top': 0}, className="app-graph-map")
             ])
+            
         ], style={'margin-top': 10}),
         # Hidden div inside the app that stores the intermediate value
         html.Div(id='predicted-value', style={'display': 'none'},
@@ -750,7 +755,7 @@ def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
         prepare_plot_data_pos(df_feat_fr, flag_update)
 
     # prepare plot data for MAPS
-    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, _ = \
         prepare_plot_data_map(flag_update)
 
     display_msg("UPDATE DATA BUTTON END.")
@@ -805,10 +810,14 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
     print('id_button (new): ', id_button)
     print("graph_type (old):", graph_type_old)
     print("graph_type (new):", graph_type)
-
+    
     # if click change to France button, display Country not dept.
     if (id_button_old !=4) & (id_button==4):
         mode_country = 1
+        if (dep_curr != dep_old):
+            mode_country = 0
+        else:
+            mode_country = 1
     # if no change for buttons or graph type but change dept
     # then displays dept.
     elif (id_button_old == id_button) & (graph_type_old == graph_type):
@@ -816,6 +825,8 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
             mode_country = 0
         else:
             mode_country = 1
+    elif (id_button_old != id_button) & (id_button == 0):
+        mode_country = 0
     else:
         mode_country = mode_country_old
     print("mode_country: ", mode_country)
@@ -828,7 +839,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
             #str_date_last = df_feat_fr["date"].max()
         else:
             # prepare plot data for MAPS
-            df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
+            df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, _ = \
                 prepare_plot_data_map(False)
             fig_out = create_fig_rt_dep(dep_curr, df_code_dep, 
                     pt_fr_test_last, df_dep_r0)
@@ -836,21 +847,31 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
     # user had just click on  "Test" button, only country graph available
     #elif (graph_type_old != 1) &  (id_button == 1):
     elif (graph_type == 1):
-        df_feat_fr = load_data_pos()
-        fig_out = create_fig_pos_rate_fr(df_feat_fr)
-        #str_date_last = df_feat_fr["date"].max()
+        if (graph_type_old != 1):
+            df_feat_fr = load_data_pos()
+            fig_out = create_fig_pos_rate_fr(df_feat_fr)
+            #str_date_last = df_feat_fr["date"].max()
+        else:
+            print("PreventUpdate.")
+            raise PreventUpdate
     # user in mode Confirmed, only dept. available 
     #elif (id_button == 0):
     else:
         # if user in mode "Confirmed"
+        # 
         # prepare plot data for MAPS
-        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep = \
-            prepare_plot_data_map(False)
-        df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
-        df_pos_fr.index = df_pos_fr["date"]
-        fig_out = create_fig_pos_dep(dep_curr, df_code_dep, 
-                    pt_fr_test_last, df_dep_r0, df_pos_fr)
-        #str_date_last = df_dep_r0["date"].max()
+        if not mode_country:
+            df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum = \
+                prepare_plot_data_map(False)
+            df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
+            df_pos_fr.index = df_pos_fr["date"]
+            fig_out = create_fig_pos_dep(dep_curr, df_code_dep, 
+                        pt_fr_test_last, df_dep_r0, df_pos_fr, df_dep_sum)
+            #str_date_last = df_dep_r0["date"].max()
+        else:
+            
+            print("PreventUpdate.")
+            raise PreventUpdate
     '''else:
         print("PreventUpdate.")
         raise PreventUpdate  ''' 

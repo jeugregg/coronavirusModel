@@ -67,7 +67,6 @@ def create_date_ranges(ser_dates, nb_days_CV):
     '''
     ser_start = []
     ser_end = []
-    date_format = "%Y-%m-%d"
     # find first date : 
     str_date_min = ser_dates.min()
     str_date_max = ser_dates.max()

@@ -23,7 +23,10 @@ from my_helpers.meteo import PATH_DF_METEO_FR
 from my_helpers.meteo import PATH_DF_METEO_FR_OLD
 from my_helpers.meteo import PATH_JSON_METEO_TEMP_FR_OLD
 from my_helpers.model import FUTURE_TARGET, TRAIN_SPLIT
-from my_helpers.model import update_pred_pos, update_pred_pos_all
+from my_helpers.model import calc_rt, update_pred_pos, update_pred_pos_all
+from my_helpers.model import NB_DAYS_CV, calc_rt_from_sum, calc_sum_mobile
+#from my_helpers.data_maps import calc_rt
+#from my_helpers.data_maps import sum_mobile
 
 # DEFINITIONS
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
@@ -112,7 +115,7 @@ def compute_sum_dep(df_in):
     df_in["daily"] = 0
     list_dep = []
     for col_curr in df_in.columns:
-        if re.search("^\d", col_curr):
+        if re.search(r"^\d", col_curr):
             list_dep.append(col_curr)
     for dep_curr in list_dep:
         df_in["daily"]  += df_in[dep_curr]
@@ -209,6 +212,25 @@ def prepare_features(df_feat_fr, df_pos_fr, df_test_fr,
     # add nb_cases confirmed cummulative sum
     df_feat_fr["nb_cases"] = df_pos_fr["nb_cases"].copy()
 
+    # calculate sum-cases
+    ser_sum = calc_sum_mobile(df_feat_fr["date"], df_feat_fr["pos"], NB_DAYS_CV)
+    ser_sum.name = "sum_cases"
+    df_feat_fr.drop(columns=["sum_cases"], inplace=True, errors="ignore")
+    df_feat_fr = df_feat_fr.join(ser_sum)
+
+    # calculate Rt country : Rt
+    '''ser_rt = calc_rt(df_feat_fr["date"], df_feat_fr["pos"], NB_DAYS_CV)
+    ser_rt.name = "Rt"
+    df_feat_fr.drop(columns=["Rt"], inplace=True, errors="ignore")
+    df_feat_fr = df_feat_fr.join(ser_rt)'''
+
+    ser_rt = calc_rt_from_sum(df_feat_fr["sum_cases"], NB_DAYS_CV)
+    ser_rt.name = "Rt"
+    df_feat_fr.drop(columns=["Rt"], inplace=True, errors="ignore")
+    df_feat_fr = df_feat_fr.join(ser_rt)
+    
+    # positive rate
+    df_feat_fr["rate_pos"] = 100*df_feat_fr["pos"] / df_feat_fr["test"]
     # save for future uses
     df_feat_fr.to_csv(path_df_feat_fr, index=False)
 
