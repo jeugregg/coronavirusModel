@@ -371,7 +371,7 @@ def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
 
     subtitle_curr = "Rt: " + \
                     "<b>{:.2f}</b> ".format(df_dep_r0[dep_num_curr][-1]) + \
-                    'on {}<br>'.format(df_dep_r0['date'].max())  + \
+                    'on {}<br>'.format(df_dep_r0['date'].values[-1])  + \
                     "sum cases: <b>{}</b>".format(pt_fr_test_last.loc[ \
                     pt_fr_test_last.dep == dep_num_curr, "p"].values[0]) + \
                         " (last 14 days)"
@@ -425,7 +425,7 @@ def create_fig_rt_fr(df_feat_fr):
 
     subtitle_curr = "Rt: " + \
                     "<b>{:.2f}</b> ".format(ser_rt.values[-1]) + \
-                    'on {}<br>'.format(ser_rt.index.max())  + \
+                    'on {}<br>'.format(ser_rt.index[-1])  + \
                     "sum cases: <b>{}</b>".format(sum_last) + \
                         " (last 14 days)"
 
@@ -498,7 +498,7 @@ def create_fig_pos_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0,
     ))
 
     subtitle_curr = \
-        f'<i>{df_dep_r0["date"].max()}:</i> ' + \
+        f'<i>{df_dep_r0["date"].values[-1]}:</i> ' + \
         'Rt: <b>{:.2f}</b>'.format(df_dep_r0[dep_num_curr][-1]) + \
         "<br>14days-sum:<b> {:.0f}</b>".format(pos_mean.values[-1])
 
@@ -549,7 +549,7 @@ def create_fig_pos_rate_fr(df_feat_fr):
             line=dict(color="blue")), secondary_y=True)
 
     subtitle_curr = \
-        f'<i>{df_feat_fr["date"].max()}:</i> ' + \
+        f'<i>{df_feat_fr["date"].values[-1]}:</i> ' + \
         'pos. rate:<b> {:.1f}</b>'.format(rate_pos.values[-1]) + \
         " %<br>mean pos. age:<b> {:.1f}</b>".format(df_feat_fr["age_pos"] \
             .values[-1])
@@ -696,16 +696,17 @@ def startup_layout():
             dcc.Tab(label='Maps', 
                 value='tab-2', children=[
                 html.Div(id="div-rt-map", children=dcc.Graph(id='covid-rt-map',
-            figure=create_fig_map(pt_fr_test_last, dep_fr, str_date_last), 
+                    figure=create_fig_map(pt_fr_test_last, dep_fr, 
+                    str_date_last), 
                 ), style={'display': 'inline-block', 
                     'margin-right': 1}, n_clicks=0, className="app-map"),
-                html.Div(dcc.Loading(
+                html.Div(children=[dcc.Loading(
                 id="loading-graph-map",
-                type="default",
-                children=dcc.Graph(id='covid-rt-dep-graph',
+                type="default"),
+                dcc.Graph(id='covid-rt-dep-graph',
                 figure=create_fig_pos_dep("Paris", df_code_dep, pt_fr_test_last, 
                 df_dep_r0, df_pos_fr, df_dep_sum
-                ))), style={'display': 'inline-block', 
+                ))], style={'display': 'inline-block', 
                 'margin-top': 0}, className="app-graph-map")
             ])
             
@@ -773,6 +774,7 @@ def display_click_data(clickData, n_clicks):"""
 
 @app.callback(
     [Output('loading-graph-map', 'children'),
+    Output('covid-rt-dep-graph', 'figure'),
     Output('graph_type', 'children'), 
     Output('id_button', 'children'),
     Output('mode_country', 'children'),
@@ -869,7 +871,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
                         pt_fr_test_last, df_dep_r0, df_pos_fr, df_dep_sum)
             #str_date_last = df_dep_r0["date"].max()
         else:
-            
+
             print("PreventUpdate.")
             raise PreventUpdate
     '''else:
@@ -879,8 +881,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
     display_msg("display_click_data END.")
     if dep_curr is None:
         dep_curr =""
-    return dcc.Graph(id='covid-rt-dep-graph', 
-            figure=fig_out), graph_type, id_button, mode_country, dep_curr
+    return "", fig_out, graph_type, id_button, mode_country, dep_curr
     
 
 if __name__ == '__main__':
