@@ -16,6 +16,9 @@ def add_days(str_date_0, nb_days_CV):
     return str_date_start
 
 def generate_list_dates(str_date_0, str_date_1, date_format=None):
+    '''
+    Generate a list of dates between 2 dates
+    '''
     if date_format is None:
         date_format = "%Y-%m-%d"
     date_0 = datetime.datetime.strptime(str_date_0, date_format)
@@ -51,7 +54,7 @@ def get_file_date(path_to_file):
 
 def conv_dt_2_str(dt_in):
     '''
-    Convert datatime to string date
+    Convert datetime to string date
     '''
     return  dt_in.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -70,8 +73,8 @@ def create_date_ranges(ser_dates, nb_days_CV):
     # find first date : 
     str_date_min = ser_dates.min()
     str_date_max = ser_dates.max()
-    print("str_date_min: ", str_date_min)
-    print("str_date_max: ", str_date_max)
+    #print("str_date_min: ", str_date_min)
+    #print("str_date_max: ", str_date_max)
     ser_end.append(str_date_max)
     str_date_start = add_days(str_date_max, -(nb_days_CV-1))
     next_date = find_close_date(ser_dates, str_date_start, str_date_min)
