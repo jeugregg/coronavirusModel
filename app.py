@@ -323,46 +323,37 @@ def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
     display_msg("create_fig_map END.")
     return fig
 
-def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
-    
-    '''Rt evolution plots for one departement
-    
-     data : 
-     - df_dep_r0 (date,  date / dep. Rt)
-     - df_code_dep (-, dep. code / dep name )
-     - pt_fr_test_last (-, p / t / dep / code / name / p_0 / R0)
-    '''
-    display_msg("create_fig_rt_dep ...")
-    dep_num_curr = df_code_dep.loc[df_code_dep["name"] == dep_curr, 
-                            "code"].values[0]
+def figure_rt(ser_rt, dep_curr, sum_pos_last, country="France"):
 
-    if (df_dep_r0[dep_num_curr][-1] > 1) & \
-        (pt_fr_test_last.loc[ \
-            pt_fr_test_last.dep == dep_num_curr, "p"].values[0] > 400):
+    # color calculation
+    if (ser_rt.values[-1] > 1) & \
+    (sum_pos_last > 400):
         color_curr = "red"
-    elif (df_dep_r0[dep_num_curr][-1] > 1):
+    elif (ser_rt.values[-1] > 1):
         color_curr = "orange"
     else:
         color_curr = "blue"
         
+    # create figure
     fig = go.Figure()
 
-    fig.add_trace(go.Scatter(x=df_dep_r0["date"], y=df_dep_r0[dep_num_curr],
+    fig.add_trace(go.Scatter(x=ser_rt.index, y=ser_rt.values,
                 mode='lines', name=dep_curr, line=dict(color=color_curr),
                 fill='tozeroy'))
 
-    fig.add_trace(go.Scatter(x=[df_dep_r0["date"][0], 
-                                    df_dep_r0["date"][-1]], 
-                                 y=[1,1],
-                                 mode='lines', 
-                                 line=dict(color="red", dash='dash'),
-                                 hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=[ser_rt.index[0], 
+                                    ser_rt.index[-1]], 
+                                y=[1,1],
+                                mode='lines', 
+                                line=dict(color="red", dash='dash'),
+                                hoverinfo="skip"))
 
     fig.add_annotation(
                 x=0,
                 y=-0.18,
                 text="<i>Click on Map to Update this Curve<br> " + \
-                    'or Click on "France" button for global country Curve</i>')
+                    f'or Click on "{country}" ' + \
+                    "button for global country Curve</i>")
     fig.update_annotations(dict(
                 xref="paper",
                 yref="paper",
@@ -370,11 +361,9 @@ def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
     ))
 
     subtitle_curr = "Rt: " + \
-                    "<b>{:.2f}</b> ".format(df_dep_r0[dep_num_curr][-1]) + \
-                    'on {}<br>'.format(df_dep_r0['date'].values[-1])  + \
-                    "sum cases: <b>{}</b>".format(pt_fr_test_last.loc[ \
-                    pt_fr_test_last.dep == dep_num_curr, "p"].values[0]) + \
-                        " (last 14 days)"
+                    "<b>{:.2f}</b> ".format(ser_rt.values[-1]) + \
+                    'on {}<br>'.format(ser_rt.index[-1])  + \
+                    f"sum cases: <b>{sum_pos_last}</b> (last 14 days)"
 
     fig.update_layout(
         title=dict(text="<b>Reprod. nb.</b>: <b>{}</b>".format(dep_curr) + \
@@ -388,9 +377,29 @@ def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
     )
 
     fig.update_yaxes(title_standoff=0)
+    return fig
+
+def create_fig_rt_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0):
+    
+    '''Rt evolution plots for one departement
+    
+     data : 
+     - df_dep_r0 (date,  date / dep. Rt)
+     - df_code_dep (-, dep. code / dep name )
+     - pt_fr_test_last (-, p / t / dep / code / name / p_0 / R0)
+    '''
+    display_msg("create_fig_rt_dep ...")
+    dep_num_curr = df_code_dep.loc[df_code_dep["name"] == dep_curr, 
+                            "code"].values[0]
+
+
+    ser_rt = df_dep_r0[dep_num_curr]
+    sum_pos_last = pt_fr_test_last.loc[ \
+                        pt_fr_test_last.dep == dep_num_curr, "p"].values[0]
+
 
     display_msg("create_fig_rt_dep END.")
-    return fig
+    return figure_rt(ser_rt, dep_curr, sum_pos_last)
 
 def create_fig_rt_fr(df_feat_fr):
     
@@ -401,11 +410,12 @@ def create_fig_rt_fr(df_feat_fr):
     '''
     display_msg("create_fig_rt_fr ...")
 
-    #ser_rt = calc_rt(df_feat_fr["date"], df_feat_fr["pos"], NB_DAYS_CV)
+
     ser_rt = df_feat_fr["Rt"]
-    #sum_last = df_feat_fr["pos"][-NB_DAYS_CV:].sum()
     sum_last = df_feat_fr["sum_cases"].values[-1]
-    if (ser_rt[-1] > 1):
+
+
+    '''if (ser_rt[-1] > 1):
         color_curr = "red"
     else:
         color_curr = "blue"
@@ -450,12 +460,56 @@ def create_fig_rt_fr(df_feat_fr):
                 xref="paper",
                 yref="paper",
                 showarrow=False
-    ))
+    ))'''
 
     display_msg("create_fig_rt_fr END.")
+    
+    return figure_rt(ser_rt, "France", sum_last)
+
+def figure_pos(ser_pos, ser_sum_pos, dep_curr, rt_last):
+    '''
+    Figure creation positive daily and sum-mobile
+    '''
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_trace(go.Scatter(x=ser_pos.index, y=ser_pos.values,
+                mode='lines', name="daily", line=dict(color="red"),
+                fill='tozeroy'), secondary_y=False)
+
+    fig.add_trace(go.Scatter(x=ser_sum_pos.index, y=ser_sum_pos.values,
+                mode='lines', name='14-days-sum', 
+                line=dict(color="blue")), secondary_y=True)
+
+    fig.add_annotation(
+                x=0,
+                y=-0.18,
+                text="<i>Click on Map to Update this Curve<br>" + \
+                    "Curve for global country not available...</i>")
+    fig.update_annotations(dict(
+                xref="paper",
+                yref="paper",
+                showarrow=False
+    ))
+
+    subtitle_curr = \
+        f'<i>{ser_pos.index[-1]}:</i> ' + \
+        'Rt: <b>{:.2f}</b>'.format(rt_last) + \
+        "<br>14days-sum:<b> {:.0f}</b>".format(ser_sum_pos.values[-1])
+
+    fig.update_layout(showlegend=True, font=dict(size=12),
+        title=dict(text=f"New cases: <b>{dep_curr}</b><br>" + \
+        subtitle_curr,
+        xanchor="center", x=0.5, yanchor="top", y=0.95)
+    )
+
+    fig.update_yaxes({"color": "red",}, secondary_y=False)
+
+    fig.update_yaxes({"color": "blue"}, secondary_y=True) 
+    fig.update_layout(margin={"r":0,"t":70, "l":50}) 
+    fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
+    
     return fig
 
-def create_fig_pos_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0, 
+def create_fig_pos_dep(dep_curr, df_code_dep, df_dep_r0, 
         df_pos_fr, df_dep_sum):
     
     '''Confirmed evolution plots for one departement
@@ -473,57 +527,14 @@ def create_fig_pos_dep(dep_curr, df_code_dep, pt_fr_test_last, df_dep_r0,
     dep_num_curr = df_code_dep.loc[df_code_dep["name"] == dep_curr, 
                             "code"].values[0]
     # calculation
-    #ser_start , ser_end = create_date_ranges(df_pos_fr["date"], 14)
-    #pos_mean = sum_mobile(df_pos_fr[dep_num_curr], ser_start, ser_end)
     pos_mean = df_dep_sum[dep_num_curr]
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    fig.add_trace(go.Scatter(x=df_pos_fr["date"], y=df_pos_fr[dep_num_curr],
-                mode='lines', name="daily", line=dict(color="red"),
-                fill='tozeroy'), secondary_y=False)
-
-    fig.add_trace(go.Scatter(x=pos_mean.index, y=pos_mean,
-                mode='lines', name='14-days-sum', 
-                line=dict(color="blue")), secondary_y=True)
-
-    fig.add_annotation(
-                x=0,
-                y=-0.18,
-                text="<i>Click on Map to Update this Curve<br>" + \
-                    "Curve for global country not available...</i>")
-    fig.update_annotations(dict(
-                xref="paper",
-                yref="paper",
-                showarrow=False
-    ))
-
-    subtitle_curr = \
-        f'<i>{df_dep_r0["date"].values[-1]}:</i> ' + \
-        'Rt: <b>{:.2f}</b>'.format(df_dep_r0[dep_num_curr][-1]) + \
-        "<br>14days-sum:<b> {:.0f}</b>".format(pos_mean.values[-1])
-
-    fig.update_layout(showlegend=True, font=dict(size=12),
-        title=dict(text=f"New cases: <b>{dep_curr}</b><br>" + \
-        subtitle_curr,
-        #yaxis_title='Daily cases',
-        xanchor="center", x=0.5, yanchor="top", y=0.95)
-    )
-
-    fig.update_yaxes({"color": "red",}, secondary_y=False)
-    #fig.update_yaxes(title_standoff=0, secondary_y=False)
-
-    fig.update_yaxes({"color": "blue"}, secondary_y=True)
-    #fig.update_yaxes({"color": "blue", "title_text": "14days-sum"}, 
-    #    secondary_y=True)
-    #fig.update_yaxes(title_standoff=0, secondary_y=True)
-    #fig.update_yaxes(automargin=True)
-    #fig.update_layout(margin={"r":0, "t":50, "l":70, "b":35})   
-    fig.update_layout(margin={"r":0,"t":70, "l":50}) 
-    #fig.update_layout(xaxis=dict(rangeslider=dict(visible=True)))
-    fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
-    #fig.update_layout(height=600)
+    # new input style (temp)
+    rt_last = df_dep_r0[dep_num_curr][-1]
+    
     display_msg("create_fig_rt_dep END.")
-    return fig
+
+    return figure_pos(df_pos_fr[dep_num_curr], pos_mean, dep_curr, rt_last)
 
 def create_fig_pos_rate_fr(df_feat_fr):
     '''
@@ -704,7 +715,7 @@ def startup_layout():
                 id="loading-graph-map",
                 type="default"),
                 dcc.Graph(id='covid-rt-dep-graph',
-                figure=create_fig_pos_dep("Paris", df_code_dep, pt_fr_test_last, 
+                figure=create_fig_pos_dep("Paris", df_code_dep, 
                 df_dep_r0, df_pos_fr, df_dep_sum
                 ))], style={'display': 'inline-block', 
                 'margin-top': 0}, className="app-graph-map")
@@ -868,7 +879,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
             df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
             df_pos_fr.index = df_pos_fr["date"]
             fig_out = create_fig_pos_dep(dep_curr, df_code_dep, 
-                        pt_fr_test_last, df_dep_r0, df_pos_fr, df_dep_sum)
+                        df_dep_r0, df_pos_fr, df_dep_sum)
             #str_date_last = df_dep_r0["date"].max()
         else:
 
