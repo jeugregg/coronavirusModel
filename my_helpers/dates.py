@@ -83,3 +83,22 @@ def create_date_ranges(ser_dates, nb_days_CV):
         ser_end.append(add_days(ser_end[-1], -1))
         ser_start.append(add_days(ser_end[-1], -(nb_days_CV-1)))
     return ser_start, ser_end
+
+def create_date_range_lim(date_req_start, date_req_end, n_days=32):
+    '''
+    Create lists of date range limited to n_days
+    '''
+    date_req_start_lim = add_days(date_req_start, -1)
+    list_dates = generate_list_dates(date_req_start_lim, date_req_end)
+    list_dates_start = []
+    list_dates_end = []
+
+    if len(list_dates) > n_days:
+        for I in range(0, len(list_dates), n_days):
+            list_dates_start.append(list_dates[I])
+            list_dates_end.append(min(add_days(list_dates[I], n_days-1),
+                                     date_req_end))
+    else:
+        list_dates_start = date_req_start
+        list_dates_end = date_req_end
+    return list_dates_start, list_dates_end
