@@ -1,9 +1,17 @@
 
 .app-map {
-        width: 54%;
+    width: 53%;
+    float: left;
+    margin-right: 1px;
 }
 .app-graph-map {
     width: 44%;
+    display: inline-block;
+    margin-top: 0px;
+}
+
+.graph-mdl {
+    margin-top: 10px;
 }
 
 @media screen and (max-width: 420px) {
@@ -13,4 +21,12 @@
     .app-graph-map {
         width: 100%;
     }
+}
+
+.app-hide {
+    display: none;
+}
+
+.app-show-block {
+    display: block;
 }

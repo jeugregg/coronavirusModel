@@ -437,7 +437,7 @@ def get_update_df_feat_kr(date_now=None, force_update=False):
     return df_feat_kr_tmp
 
 
-def update_df_feat_fr(date_now=None, force_update=False, force_calc=False):
+def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
     '''
     Update Df Feat with new cases from Gouv KR
     force_update : to replace existing file
@@ -523,7 +523,7 @@ def update_df_feat_fr(date_now=None, force_update=False, force_calc=False):
     
     # save
     if df_feat_kr is not None:
-        clean_file(PATH_DF_FEAT_KR)
+        clean_file(PATH_DF_FEAT_KR, flag_copy=True)
         df_feat_kr.to_csv(PATH_DF_FEAT_KR, index=False)
 
     return df_feat_kr

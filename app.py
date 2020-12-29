@@ -22,7 +22,9 @@ import sys
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input
+from dash.dependencies import Output
+from dash.dependencies import State
 from dash.exceptions import PreventUpdate
 import pandas as pd
 import numpy as np
@@ -41,6 +43,10 @@ from my_helpers.data_plots_kr import GEOJSON_KR
 from my_helpers.data_plots_kr import LIST_NAME_GEOJSON
 from my_helpers.data_plots_kr import LAT_LON_KR
 from my_helpers.data_plots_kr import ZOOM_KR
+from my_helpers.data_plots_kr import LIST_SUM_GEOJSON
+from my_helpers.data_plots_kr import LIST_RT_GEOJSON
+from my_helpers.data_plots_kr import DICT_AREA
+from my_helpers.data_plots_kr import update_df_feat_kr
 from my_helpers.model import calc_rt
 from my_helpers.model import NB_DAYS_CV
 from my_helpers.model import FUTURE_TARGET, PAST_HISTORY
@@ -410,10 +416,12 @@ def figure_rt(ser_rt, dep_curr, sum_pos_last, country="France"):
                 yref="paper",
                 showarrow=False
     ))
-
+    str_date = ser_rt.index[-1]
+    if isinstance(str_date, pd.Timestamp):
+        str_date = str_date.strftime("%Y-%m-%d")
     subtitle_curr = "Rt: " + \
                     "<b>{:.2f}</b> ".format(ser_rt.values[-1]) + \
-                    'on {}<br>'.format(ser_rt.index[-1])  + \
+                    f'on {str_date}<br>' + \
                     f"sum cases: <b>{sum_pos_last}</b> (last 14 days)"
 
     fig.update_layout(
@@ -426,6 +434,8 @@ def figure_rt(ser_rt, dep_curr, sum_pos_last, country="France"):
             size=12,
         )
     )
+
+    fig.update_layout(margin={"r":0,"t":70, "l":50}) 
 
     fig.update_yaxes(title_standoff=0)
     return fig
@@ -492,8 +502,12 @@ def figure_pos(ser_pos, ser_sum_pos, dep_curr, rt_last):
                 showarrow=False
     ))
 
+    str_date = ser_pos.index[-1]
+    if isinstance(str_date, pd.Timestamp):
+        str_date = ser_pos.index[-1].strftime("%Y-%m-%d")
+
     subtitle_curr = \
-        f'<i>{ser_pos.index[-1]}:</i> ' + \
+        f'<i>{str_date}:</i> ' + \
         'Rt: <b>{:.2f}</b>'.format(rt_last) + \
         "<br>14days-sum:<b> {:.0f}</b>".format(ser_sum_pos.values[-1])
 
@@ -594,59 +608,10 @@ def create_fig_pos_rate(df_feat_fr, country="France"):
 
     return fig
 
-def create_fig_pos_rate_fr2(df_feat_fr):
-    '''
-    data : 
-     - df_feat_fr (date,  [date, pos , test, age_pos] )
 
-    pos_rate =  100*df_feat_fr["pos"] / df_feat_fr["test"]
-
-    '''
-    display_msg("create_fig_pos_dep ...")
-    #rate_pos = 100*df_feat_fr["pos"] / df_feat_fr["test"]
-    rate_pos = df_feat_fr["rate_pos"]
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-
-    fig.add_trace(go.Scatter(x=df_feat_fr["date"], 
-        y=rate_pos.values,
-        mode='lines', name="pos. rate", line=dict(color="red"),
-        fill='tozeroy'), secondary_y=False)
-
-    fig.add_trace(go.Scatter(x=df_feat_fr["date"], 
-            y=df_feat_fr["age_pos"],
-            mode='lines', name='pos. age', 
-            line=dict(color="blue")), secondary_y=True)
-
-    subtitle_curr = \
-        f'<i>{df_feat_fr["date"].values[-1]}:</i> ' + \
-        'pos. rate:<b> {:.1f}</b>'.format(rate_pos.values[-1]) + \
-        " %<br>mean pos. age:<b> {:.1f}</b>".format(df_feat_fr["age_pos"] \
-            .values[-1])
-
-    fig.update_layout(showlegend=True, font=dict(size=12),
-        title=dict(text=f"Positive rate and age: <b>FRANCE</b><br>" + \
-        subtitle_curr,
-        xanchor="center", x=0.5, yanchor="top", y=0.95)
-    )
-
-    fig.update_yaxes({"color": "red",}, secondary_y=False)
-
-    fig.update_yaxes({"color": "blue"}, secondary_y=True)
-    fig.update_layout(margin={"r":0,"t":70, "l":50}) 
-    fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
-
-    fig.add_annotation(
-                x=0,
-                y=-0.18,
-                text="<i>Only global country Curve available<br></i>")
-    fig.update_annotations(dict(
-                xref="paper",
-                yref="paper",
-                showarrow=False
-    ))
-    display_msg("create_fig_rt_dep END.")
-
-    return fig
+def get_title(str_country):
+    return f'COVID-19 in {str_country} Dashboard: ' + \
+            'Datavisualization & Model'
 
 # APP DASH
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -685,6 +650,10 @@ def startup_layout():
     df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
     df_pos_fr.index = df_pos_fr["date"]
     
+    # update data KR
+    df_feat_kr = update_df_feat_kr()
+    str_date_kr = f'(up to: {df_feat_kr["date"].values[-1]})'
+
     # informations
     markdown_info = '''
     ***Legend***    
@@ -729,12 +698,14 @@ def startup_layout():
     - Météo France : https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
 
     '''
-
+    
     str_country = "France"
+
+    
     display_msg("STARTUP END.")
+    
     return html.Div(children=[
-        html.H1(children=f'COVID-19 in {str_country} Dashboard: ' + \
-            'Datavisualization & Model', id="app-title"),
+        html.H1(children=get_title(str_country), id="app-title"),
         html.Div(children=dcc.Dropdown(
             id='country-dropdown',
             options=[
@@ -749,7 +720,9 @@ def startup_layout():
         html.Div(children=dcc.Loading(
             id="loading-fig-pos",
             type="default",
-            children=html.Div(id="loading-output-1", children=str_data_date)), 
+            children=[html.Div(id="loading-output-1", children=str_data_date), 
+                html.Div(id="loading-output-kr", children=str_date_kr, 
+                className="app-hide")]), 
             style={'display': 'inline-block', 'margin-right': 10}),
         html.Div(children=html.A(
             children="By Gregory LANG, Data Scientist Freelance",
@@ -760,26 +733,60 @@ def startup_layout():
             dcc.Tab(id="tab-mdl", 
                 label='Evolution & Model', 
                 value='tab-mdl', 
-                children=dcc.Graph(id='covid-pos-graph',
-                    figure=create_fig_pos(df_plot, df_plot_pred, 
-                    df_plot_pred_all, str_date_mdl), style={'margin-top': 10})
+                children=[
+                    dcc.Graph(id='covid-pos-graph',
+                        figure=create_fig_pos(df_plot, df_plot_pred, 
+                            df_plot_pred_all, str_date_mdl), 
+                        className="graph-mdl"
+                    ),
+                    dcc.Graph(id='covid-pos-graph-kr', className="app-hide")
+                ]
             ),
             dcc.Tab(id="tab-map",
                 label='Maps', 
                 value='tab-map', children=[
-                html.Div(id="div-rt-map", children=dcc.Graph(id='covid-rt-map',
-                    figure=create_fig_map(pt_fr_test_last, dep_fr, 
-                    str_date_last), 
-                ), style={'display': 'inline-block', 
-                    'margin-right': 1}, n_clicks=0, className="app-map"),
-                html.Div(children=[dcc.Loading(
-                id="loading-graph-map",
-                type="default"),
-                dcc.Graph(id='covid-rt-dep-graph',
-                figure=create_fig_pos_dep("Paris", df_code_dep, 
-                df_dep_r0, df_pos_fr, df_dep_sum
-                ))], style={'display': 'inline-block', 
-                'margin-top': 0}, className="app-graph-map")
+                html.Div(id="div-rt-map", 
+                    children=[
+                        dcc.Graph(id='covid-rt-map',
+                            figure=create_fig_map(pt_fr_test_last, dep_fr, 
+                            str_date_last), 
+                            )], 
+                    n_clicks=0, 
+                    className="app-map"
+                ),
+                html.Div(id="div-rt-map-kr", 
+                    children=[
+                        html.Button('Confirmed', id='btn-conf', n_clicks=0,
+                            style={"padding-right": 15, "padding-left": 15}),
+                        html.Button('Tested', id='btn-test', n_clicks=0,
+                            style={"padding-right": 15, "padding-left": 15}),
+                        html.Button('Rt', id='btn-rt', n_clicks=0, 
+                            style={"padding-right": 15, "padding-left": 15}),
+                        html.Button('South Korea', id='btn-kr', n_clicks=0,
+                            style={"padding-right": 15, "padding-left": 15}),
+                        dcc.Graph(id='covid-rt-map-kr')
+                    ], 
+                    n_clicks=0, 
+                    className="app-hide"
+                ),
+                html.Div(id="div-rt-curve", 
+                    children=[
+                        dcc.Loading(id="loading-graph-map", type="default"),
+                        dcc.Graph(id='covid-rt-dep-graph', 
+                            figure=create_fig_pos_dep("Paris", df_code_dep, 
+                                df_dep_r0, df_pos_fr, df_dep_sum)
+                        )
+                    ], 
+                    className="app-graph-map"
+                ),
+                html.Div(id="div-rt-curve-kr", 
+                    children=[
+                        dcc.Loading(id="loading-graph-map-kr", type="default"),
+                        dcc.Graph(id='covid-rt-dep-graph-kr')
+                    ], 
+                    className="app-hide"
+                )
+
             ])
             
         ], style={'margin-top': 10}),
@@ -789,6 +796,8 @@ def startup_layout():
         html.Div(id='predicted-value-all', style={'display': 'none'},
             children=jsonifed_pred(df_plot_pred_all)),
         html.Div(id='graph_type', style={'display': 'none'},
+            children=0),
+        html.Div(id='graph_type_kr', style={'display': 'none'},
             children=0),
         html.Div(id='id_button', style={'display': 'none'},
             children=0), 
@@ -802,38 +811,204 @@ def startup_layout():
 app.layout = startup_layout
 
 @app.callback(
-    [dash.dependencies.Output('tab-mdl', 'children')],
+    [dash.dependencies.Output("app-title", "children"),
+    dash.dependencies.Output('covid-pos-graph', 'className'),
+    dash.dependencies.Output("div-rt-map", "className"),
+    dash.dependencies.Output("div-rt-curve", "className"),
+    dash.dependencies.Output("div-rt-map-kr", "className"),
+    dash.dependencies.Output("div-rt-curve-kr", "className"),
+    Output("loading-output-1", "className"),
+    Output("loading-output-kr", "className")],
     [dash.dependencies.Input('country-dropdown', 'value')],
     prevent_initial_call=True)
 def update_tabs(value):
     display_msg("update_tabs ...")
     if (value == "South Korea"):
-        return [""]
+
+        '''# load data kr
+        df_feat_kr = load_df_feat_kr()
+        # figure mdl
+        graph_mdl = [""]
+        # figure map
+        fig_map = create_fig_map_kr(df_feat_kr, LIST_SUM_GEOJSON, 
+            "<b>Confirmed</b> cases : Sum of last 14 days")
+
+
+        # figure graph
+        dep_curr = "South Korea"
+        ser_pos = df_feat_kr["pos"]
+        ser_sum_pos = df_feat_kr["sum_cases"]
+        rt_last = df_feat_kr["Rt"].values[-1]
+        fig_curve = figure_pos(ser_pos, ser_sum_pos, dep_curr, rt_last)
+        graph_curve = dcc.Graph(id='covid-rt-map-curve',
+                    figure=fig_curve)'''
+
+        
+        return get_title(value), "app-hide", "app-hide", "app-hide", \
+            "app-map", "app-graph-map", "app-hide", "app-show-block"
     else:
-        # prepare input data
+        '''# prepare input data
         df_feat_fr, str_date_mdl, str_data_date = prepare_data_input(False)
     
         # prepare plot data for positive cases
         df_plot, df_plot_pred, df_plot_pred_all, str_date_last = \
             prepare_plot_data_pos(df_feat_fr, False)
-        
-        return [dcc.Graph(id='covid-pos-graph',
-                    figure=create_fig_pos(df_plot, df_plot_pred, 
-                    df_plot_pred_all, str_date_mdl), style={'margin-top': 10})]
 
+        # prepare plot data for MAPS
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum = \
+            prepare_plot_data_map(False)
+    
+        df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
+        df_pos_fr.index = df_pos_fr["date"]'''
+
+        return get_title(value), "graph-mdl", "app-map", "app-graph-map", \
+            "app-hide", "app-hide", "app-show-block", "app-hide"
+            
+
+# updata map / curve in KR : actions on buttons or dropdown
+@app.callback([Output('loading-graph-map-kr', 'children'),
+    Output('covid-rt-map-kr', 'figure'),
+    Output('covid-rt-dep-graph-kr', 'figure'),
+    Output('graph_type_kr', 'children'),
+    Output('loading-output-kr', 'children')],
+    [Input('btn-conf', 'n_clicks'),
+    Input('country-dropdown', 'value'),
+    Input('covid-rt-map-kr', 'clickData'),
+    Input("btn-kr",'n_clicks'),
+    Input("btn-test",'n_clicks'),
+    Input("btn-rt",'n_clicks'), 
+    Input('update-data', 'n_clicks')],
+    [State("graph_type_kr", "children")],
+    prevent_initial_call=True)
+def update_map_kr_callback(n_clicks, dropdown_value, clickData, 
+    n_clicks_country, n_clicks_test, n_clicks_rt, n_clicks_update, graph_type):
+
+
+    if (dropdown_value != "South Korea"):
+        raise PreventUpdate
+
+    display_msg("update_map_kr_callback_callback...")
+
+    # take context button
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        button_id = 'No clicks yet'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    print("button_id: ", button_id)
+
+    str_date_kr = dash.no_update
+    # if update button : update KR data only
+    if (button_id == "update-data"):
+        update_df_feat_kr()
+    
+    df_feat_kr = None
+    
+    # graph-type
+    if (button_id == "btn-conf"):
+        graph_type = 0
+    elif (button_id == "btn-test"):
+        graph_type = 1
+    elif (button_id == "btn-rt"):
+        graph_type = 2
+    print("graph_type: ", graph_type)
+    # check current dept.:
+    try:
+        if (button_id == "btn-kr"):
+            dep_curr = "South Korea"
+        else:
+            dep_curr = clickData["points"][0]["location"]
+            dep_curr = DICT_AREA[dep_curr]
+    except:
+        dep_curr = "South Korea"
+    print(dep_curr)
+
+    # figure curve confirmed
+    if (graph_type == 0): 
+
+        # figure map
+        if (button_id != "covid-rt-map-kr"):
+            if (df_feat_kr is None):
+                df_feat_kr = load_df_feat_kr()
+            fig_map = create_fig_map_kr(df_feat_kr, LIST_SUM_GEOJSON, 
+                "<b>Confirmed</b> cases : Sum of last 14 days")
+        else:
+            fig_map = dash.no_update
+
+        if (dep_curr == "South Korea"):
+            if (df_feat_kr is None):
+                df_feat_kr = load_df_feat_kr()
+            ser_pos = df_feat_kr["pos"]
+            ser_sum_pos = df_feat_kr["sum_cases"]
+            rt_last = df_feat_kr["Rt"].values[-1]
+            fig_curve = figure_pos(ser_pos, ser_sum_pos, dep_curr, rt_last)
+        else:
+            if (df_feat_kr is None):
+                df_feat_kr = load_df_feat_kr()
+            ser_pos = df_feat_kr[dep_curr]
+            ser_sum_pos = df_feat_kr[f"sum_{dep_curr}"]
+            rt_last = df_feat_kr[f"Rt_{dep_curr}"].values[-1]
+            fig_curve = figure_pos(ser_pos, ser_sum_pos, dep_curr, rt_last)
+
+    elif(graph_type == 1): # test pos rate
+        # map
+        fig_map = dash.no_update
+        # curve
+        if (df_feat_kr is None):
+            df_feat_kr = load_df_feat_kr()
+        fig_curve = create_fig_pos_rate(df_feat_kr, "South Korea")
+
+    elif(graph_type == 2): # mode Rt
+
+        # figure map
+        if (button_id != "covid-rt-map-kr"):
+            if (df_feat_kr is None):
+                df_feat_kr = load_df_feat_kr()
+            fig_map = create_fig_map_kr(df_feat_kr, LIST_RT_GEOJSON, 
+            "<b>Rt</b> estimated for last 14 days")
+        else:
+            fig_map = dash.no_update
+
+        if (dep_curr == "South Korea"):
+            if (df_feat_kr is None):
+                df_feat_kr = load_df_feat_kr()
+            dep_curr = "South Korea"
+            ser_rt = df_feat_kr[df_feat_kr["date"] >= "2020-03-19"]["Rt"]
+            sum_pos_last = df_feat_kr["sum_cases"].values[-1]
+            fig_curve = figure_rt(ser_rt, dep_curr, sum_pos_last, 
+                country="South Korea")
+            
+        else:
+            if (df_feat_kr is None):
+                df_feat_kr = load_df_feat_kr()
+            ser_rt = df_feat_kr[df_feat_kr["date"] >= \
+                "2020-03-19"][f"Rt_{dep_curr}"]
+            sum_pos_last = df_feat_kr[f"sum_{dep_curr}"].values[-1]
+            fig_curve = figure_rt(ser_rt, dep_curr, sum_pos_last, 
+                country="South Korea")
+
+    if ((button_id == "update-data") & (df_feat_kr is not None)):
+        str_date_kr = f'(up to: {df_feat_kr["date"].values[-1]})'
+    
+    return "", fig_map, fig_curve, graph_type, str_date_kr
 
 # button update data
 @app.callback(
-    [dash.dependencies.Output('loading-output-1', 'children'), 
-    dash.dependencies.Output('covid-pos-graph', 'figure'),
-    dash.dependencies.Output('covid-rt-map', 'figure')],
-    [dash.dependencies.Input('update-data', 'n_clicks')],
-    [dash.dependencies.State('predicted-value', 'children'),
-    dash.dependencies.State('predicted-value-all', 'children')], 
+    [Output('loading-output-1', 'children'), 
+    Output('covid-pos-graph', 'figure'),
+    Output('covid-rt-map', 'figure')],
+    [Input('update-data', 'n_clicks')],
+    [State('predicted-value', 'children'),
+    State('predicted-value-all', 'children'),
+    State('country-dropdown', 'value')], 
     prevent_initial_call=True)
-def load_figure(n_clicks, jsonified_pred, jsonified_pred_all):
+def update_fr(n_clicks, jsonified_pred, jsonified_pred_all, dropdown_value):
+
     display_msg("UPDATE DATA BUTTON ...")
     
+    if (dropdown_value != "France"):
+        raise PreventUpdate
+
     if n_clicks < 1: # no update at loading
         display_msg("Nothing to do")
         display_msg("UPDATE DATA BUTTON END.")

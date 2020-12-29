@@ -99,6 +99,6 @@ def create_date_range_lim(date_req_start, date_req_end, n_days=32):
             list_dates_end.append(min(add_days(list_dates[I], n_days-1),
                                      date_req_end))
     else:
-        list_dates_start = date_req_start
-        list_dates_end = date_req_end
+        list_dates_start = [date_req_start]
+        list_dates_end = [date_req_end]
     return list_dates_start, list_dates_end
