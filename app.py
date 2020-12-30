@@ -655,7 +655,7 @@ def startup_layout():
     str_date_kr = f'(up to: {df_feat_kr["date"].values[-1]})'
 
     # informations
-    markdown_info = '''
+    markdown_info_mdl = '''
     ***Legend***    
     `Total`                 : Actual total number of confirmed cases in France for past days  
     `Total (estim.)`        : Estimated total number of confirmed cases in France for past days (by model)  
@@ -683,20 +683,25 @@ def startup_layout():
     - Mean Age of Tested cases
     - Mean Age of Confirmed cases
 
-    The predictions are under-estimated because the evolution is big during last days.  
+    If predictions are under-estimated, the actual evolution is going in a "BAD" way...  
+    If predictions are over-estimated, the actual evolution is going in a "GOOD" way...  
       
-    The model will learn from this current changing period in few weeks, and it will be better.  
-      
-    If new data is available, the model is predicting daily confirmed cases for next days.  
-      
+    But more the model learns from the different "waves", more the model is accurate.  
+        
+    '''  
+    markdown_info = '''
     More info in my github below.  
       
     ***GitHub***: https://github.com/jeugregg/coronavirusModel
       
     ***DATA sources***: 
-    - Tested / Confirmed cases: https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19
-    - Météo France : https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
-
+    - Tested / Confirmed cases FR: https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19
+    - Météo France: https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
+    - Tested / Confirmed cases KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043376
+    - Confirmed cases by age KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043377
+    - Confirmed cases by area KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043378
+    - Meteo South Korea (Seoul, Deagu, Busan): https://www.visualcrossing.com/weather-data
+    - Geoson Map South Korea: https://github.com/southkorea/southkorea-maps 
     '''
     
     str_country = "France"
@@ -705,6 +710,7 @@ def startup_layout():
     display_msg("STARTUP END.")
     
     return html.Div(children=[
+        dcc.Location(id='url', refresh=False),
         html.H1(children=get_title(str_country), id="app-title"),
         html.Div(children=dcc.Dropdown(
             id='country-dropdown',
@@ -739,7 +745,9 @@ def startup_layout():
                             df_plot_pred_all, str_date_mdl), 
                         className="graph-mdl"
                     ),
-                    dcc.Graph(id='covid-pos-graph-kr', className="app-hide")
+                    dcc.Graph(id='covid-pos-graph-kr', className="app-hide"),
+                    html.Div(id='info_mdl', 
+                        children=dcc.Markdown(children=markdown_info_mdl))
                 ]
             ),
             dcc.Tab(id="tab-map",
@@ -804,11 +812,24 @@ def startup_layout():
         html.Div(id='mode_country', style={'display': 'none'},
             children=0),
         html.Div(id='dep', style={'display': 'none'},
-            children=""),    
-        html.Div(id='info', children=dcc.Markdown(children=markdown_info))
+            children=""),
+        html.Div(id='info', 
+            children=dcc.Markdown(children=markdown_info))
         ])
 
 app.layout = startup_layout
+
+@app.callback([Output("country-dropdown", "value")],
+[Input('url', 'pathname')])
+def location_url_callback(pathname):
+    print('url pathname: ', pathname)
+    if (pathname == "/South-Korea"):
+        value = "South Korea"
+    elif (pathname == "/")|(pathname == "/France"):
+        value = "France"
+    else:
+        value = dash.no_update
+    return [value]
 
 @app.callback(
     [dash.dependencies.Output("app-title", "children"),
@@ -822,9 +843,9 @@ app.layout = startup_layout
     [dash.dependencies.Input('country-dropdown', 'value')],
     prevent_initial_call=True)
 def update_tabs(value):
+    
     display_msg("update_tabs ...")
     if (value == "South Korea"):
-
         '''# load data kr
         df_feat_kr = load_df_feat_kr()
         # figure mdl

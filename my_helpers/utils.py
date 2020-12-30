@@ -13,18 +13,23 @@ import numpy as np
 import pandas as pd
 
 # save file before update
-def clean_file(path_file_name, flag_copy=False):
+def clean_file(path_file_name, flag_copy=False, suffix=None):
     '''
     Clean file already traited : rename file with date
     '''
+    
     try:
-        d = datetime.datetime.now()
-        str_date = '_' + d.strftime("%Y%m%d_%H_%M_%S")
-       
+        if (suffix is None):
+            d = datetime.datetime.now()
+            suffix = '_' + d.strftime("%Y%m%d_%H_%M_%S")
+        else:
+            suffix = '_' + suffix
+
         res_re = re.search(r'\.\w+$', path_file_name)
         
         path_file_name_saved = \
-            path_file_name[0:res_re.start()] + str_date + res_re.group(0)
+            path_file_name[0:res_re.start()] + suffix + res_re.group(0)
+        
         if flag_copy:
             shutil.copy(path_file_name, path_file_name_saved)
         else:

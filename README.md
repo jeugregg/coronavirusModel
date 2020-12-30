@@ -64,7 +64,11 @@ If you are interested, look at this [very good tutorial](https://github.com/edel
 DATA Sources :  
 - Tested / Confirmed cases: https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19
 - Meteo France : https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
-
+- Tested / Confirmed cases KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043376
+- Confirmed cases by age KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043377
+- Confirmed cases by area KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043378
+- Meteo South Korea (Seoul, Deagu, Busan): https://www.visualcrossing.com/weather-data
+- Geoson Map South Korea: https://github.com/southkorea/southkorea-maps 
 
 **3) Deep Learning for read Table in HTML : [readTableWithBERT.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/readTableWithBERT.ipynb)**  
 Additional file : [read Table into HTML BERT model resume training.ipynb](https://github.com/jeugregg/coronavirusModel/blob/master/read%20Table%20into%20HTML%20BERT%20model%20resume%20training.ipynb)  

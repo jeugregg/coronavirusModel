@@ -28,7 +28,7 @@ PATH_DF_FEAT_KR = PATH_TO_SAVE_DATA + '/' + 'df_feat_kr.csv'
 PATH_DF_METEO_RAW_KR = os.path.join(PATH_TO_SAVE_DATA, 'df_meteo_raw_kr.csv')
 PATH_DF_METEO_KR = os.path.join(PATH_TO_SAVE_DATA, 'df_meteo_kr.csv')
 DATE_FIRST_CASES_GOUV_KR = '2020-02-01' # First data date in Gouv KR
-DATE_FIRST_FEAT_OK_KR = '2020-04-03' # First data age/cases/meteo for features
+DATE_FIRST_FEAT_OK_KR = '2020-04-02' # First data age/cases/meteo for features
 URL_API_CASES_KR ='http://openapi.data.go.kr/openapi/service/rest/Covid19/' + \
     'getCovid19InfStateJson'
 URL_API_AGE_KR = 'http://openapi.data.go.kr/openapi/service/rest/Covid19/' + \
@@ -343,7 +343,7 @@ def check_update_df_feat_kr(date_now=None, force_update=False):
     
     if force_update:
         return True, DATE_FIRST_CASES_GOUV_KR, \
-                DATE_FIRST_CASES_GOUV_KR, date_now
+                DATE_FIRST_FEAT_OK_KR, date_now
     
     flag_update = True # update to be done ?
     flag_update_age = True
@@ -352,16 +352,20 @@ def check_update_df_feat_kr(date_now=None, force_update=False):
         df_feat_kr = pd.read_csv(PATH_DF_FEAT_KR)
         date_req_start = add_days(df_feat_kr["date"].max(), 1)
         date_req_start_age = \
-            df_feat_kr[df_feat_kr["age_pos"].isna()]["date"].max()
+            df_feat_kr[df_feat_kr["daily_age"].isna() & \
+                (df_feat_kr["date"] > DATE_FIRST_FEAT_OK_KR)]["date"].min()
+        if (date_req_start_age is np.nan):
+            date_req_start_age = date_req_start
+        #df_feat_kr[df_feat_kr["age_pos"].isna()]["date"].max()
     else:
         date_req_start = DATE_FIRST_CASES_GOUV_KR
-        date_req_start_age = DATE_FIRST_CASES_GOUV_KR
+        date_req_start_age = DATE_FIRST_FEAT_OK_KR
     
     if date_req_start >= date_now:
             flag_update = False
             
     if date_req_start_age >= date_now:
-            flag_update = False
+            flag_update_age = False
     
     if not flag_update:
         date_req_start = None
@@ -523,7 +527,7 @@ def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
     
     # save
     if df_feat_kr is not None:
-        clean_file(PATH_DF_FEAT_KR, flag_copy=True)
+        clean_file(PATH_DF_FEAT_KR, flag_copy=True, suffix="old")
         df_feat_kr.to_csv(PATH_DF_FEAT_KR, index=False)
 
     return df_feat_kr
