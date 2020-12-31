@@ -18,6 +18,7 @@ COPY my_helpers/dates.py /app/my_helpers/
 COPY my_helpers/meteo.py /app/my_helpers/
 COPY my_helpers/model.py /app/my_helpers/
 COPY my_helpers/utils.py /app/my_helpers/
+COPY my_helpers/plots.py /app/my_helpers/
 COPY assets/app_custom.css /app/assets/
 COPY my_helpers/data_plots_kr.py /app/my_helpers/
 RUN pip install -r requirements_light.txt

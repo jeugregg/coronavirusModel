@@ -12,6 +12,11 @@ import shutil
 import numpy as np
 import pandas as pd
 
+
+def display_msg(my_message):
+    print("{} : {}".format(\
+        datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), my_message))
+
 # save file before update
 def clean_file(path_file_name, flag_copy=False, suffix=None):
     '''
