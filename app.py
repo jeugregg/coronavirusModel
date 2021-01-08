@@ -38,7 +38,10 @@ from my_helpers.data_plots_kr import load_df_feat_kr
 from my_helpers.data_plots_kr import LIST_SUM_GEOJSON
 from my_helpers.data_plots_kr import LIST_RT_GEOJSON
 from my_helpers.data_plots_kr import DICT_AREA
+from my_helpers.data_plots_kr import check_update_kr
 from my_helpers.data_plots_kr import update_df_feat_kr
+from my_helpers.data_plots_kr import prepare_data_input_kr
+from my_helpers.data_plots_kr import prepare_plot_data_pos_kr
 from my_helpers.plots import figure_pos
 from my_helpers.plots import create_fig_pos
 from my_helpers.plots import figure_rt
@@ -49,11 +52,11 @@ from my_helpers.plots import create_fig_rt_dep
 from my_helpers.plots import create_fig_rt_fr
 from my_helpers.plots import create_fig_pos_dep
 from my_helpers.plots import create_fig_pos_rate
-from my_helpers.model import calc_rt
-from my_helpers.model import NB_DAYS_CV
-from my_helpers.model import FUTURE_TARGET, PAST_HISTORY
+#from my_helpers.model import calc_rt
+#from my_helpers.model import NB_DAYS_CV
+#from my_helpers.model import FUTURE_TARGET, PAST_HISTORY
 from my_helpers.data_maps import prepare_plot_data_map
-from my_helpers.utils import sum_mobile
+#from my_helpers.utils import sum_mobile
 from my_helpers.utils import display_msg
 # DEFINITIONS
 
@@ -65,6 +68,93 @@ meta_tags=[{
     }
 ]
 
+# informations
+markdown_info_mdl = '''
+***Legend***    
+`Total`                 : Actual total number of confirmed cases in France for past days  
+`Total (estim.)`        : Estimated total number of confirmed cases in France for past days (by model)  
+`Total (future estim.)` : Estimated total number of confirmed cases in France for future days (by model)  
+`Daily`                 : Actual daily number of confirmed cases in France for past days  
+`Daily (future estim.)` : Estimated daily number of confirmed cases in France for future days (by model)  
+`Daily (estim.)`        : Estimated daily number of confirmed cases in France for past days (by model)  
+
+***About Model***  
+    
+The model is a simple LSTM Deep Learning Tensorflow model.  
+    
+It estimates the number of daily confirmed cases in France for next days by time-series forecast.  
+    
+For that, the model takes a period of 14 days to estimate the next 7 days.  
+    
+Because of lack of data, it has been trained with only few past periods and validated on only very few periods!  
+    
+Input Features are daily data for:
+- Min/Max Temperatures
+- Min/Max Humidities
+- Confirmed cases
+- Tested cases
+- Day of the week
+- Mean Age of Tested cases
+- Mean Age of Confirmed cases
+
+If predictions are under-estimated, the actual evolution is going in a "BAD" way...  
+If predictions are over-estimated, the actual evolution is going in a "GOOD" way...  
+    
+But more the model learns from the different "waves", more the model is accurate.  
+
+***DATA sources***: 
+- Tested / Confirmed cases FR: https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19
+- Météo France: https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
+    
+'''  
+markdown_info_mdl_kr = '''
+***Legend***    
+`Total`                 : Actual total number of confirmed cases in France for past days  
+`Total (estim.)`        : Estimated total number of confirmed cases in France for past days (by model)  
+`Total (future estim.)` : Estimated total number of confirmed cases in France for future days (by model)  
+`Daily`                 : Actual daily number of confirmed cases in France for past days  
+`Daily (future estim.)` : Estimated daily number of confirmed cases in France for future days (by model)  
+`Daily (estim.)`        : Estimated daily number of confirmed cases in France for past days (by model)  
+
+***About Model***  
+    
+The model is a simple LSTM Deep Learning Tensorflow model.  
+    
+It estimates the number of daily confirmed cases in South Korea for next days by time-series forecast.  
+    
+For that, the model takes a period of 14 days to estimate the next 7 days.  
+    
+Because of lack of data, it has been trained with only few past periods and validated on only very few periods!  
+    
+Input Features are daily data for:
+- Min/Max Temperatures
+- Mean Humidities
+- Wind speed
+- Confirmed cases
+- Tested cases
+- Day of the week
+- Mean Age of Confirmed cases
+
+If predictions are under-estimated, the actual evolution is going in a "BAD" way...  
+If predictions are over-estimated, the actual evolution is going in a "GOOD" way...  
+    
+But more the model learns from the different "waves", more the model is accurate.  
+
+***DATA sources***: 
+- Tested / Confirmed cases KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043376
+- Confirmed cases by age KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043377
+- Confirmed cases by area KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043378
+- Meteo South Korea (Seoul, Deagu, Busan): https://www.visualcrossing.com/weather-data
+- Geoson Map South Korea: https://github.com/southkorea/southkorea-maps 
+  
+'''  
+
+markdown_info = '''  
+More info in my github below.  
+    
+***GitHub***: https://github.com/jeugregg/coronavirusModel
+    
+'''
 # HELPER FUNCTIONS
 
 def get_title(str_country):
@@ -96,8 +186,10 @@ def startup_layout():
     # update 
     if settings.MODE_FORCE_UPDATE:
         flag_update = True
+        flag_update_kr = True
     else:
         flag_update = check_update()
+        flag_update_kr = check_update_kr()
     
     # prepare input data
     df_feat_fr, str_date_mdl, str_data_date = prepare_data_input(flag_update)
@@ -113,60 +205,15 @@ def startup_layout():
     df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
     df_pos_fr.index = df_pos_fr["date"]
     
-    # update data KR
-    df_feat_kr = update_df_feat_kr()
-    str_date_kr = f'(up to: {df_feat_kr["date"].values[-1]})'
-
-    # informations
-    markdown_info_mdl = '''
-    ***Legend***    
-    `Total`                 : Actual total number of confirmed cases in France for past days  
-    `Total (estim.)`        : Estimated total number of confirmed cases in France for past days (by model)  
-    `Total (future estim.)` : Estimated total number of confirmed cases in France for future days (by model)  
-    `Daily`                 : Actual daily number of confirmed cases in France for past days  
-    `Daily (future estim.)` : Estimated daily number of confirmed cases in France for future days (by model)  
-    `Daily (estim.)`        : Estimated daily number of confirmed cases in France for past days (by model)  
+    # prepare input data KR
+    df_feat_kr, str_date_mdl_kr, str_data_date_kr = \
+        prepare_data_input_kr(flag_update=flag_update_kr)
     
-    ***About Model***  
-      
-    The model is a simple LSTM Deep Learning Tensorflow model.  
-      
-    It estimates the number of daily confirmed cases in France for next days by time-series forecast.  
-      
-    For that, the model takes a period of 14 days to estimate the next 7 days.  
-      
-    Because of lack of data, it has been trained with only few past periods and validated on only very few periods!  
-      
-    Input Features are daily data for:
-    - Min/Max Temperatures
-    - Min/Max Humidities
-    - Confirmed cases
-    - Tested cases
-    - Day of the week
-    - Mean Age of Tested cases
-    - Mean Age of Confirmed cases
+    # prepare plot data for positive cases KR
+    df_plot_kr, df_plot_pred_kr, df_plot_pred_all_kr, str_date_last_kr = \
+        prepare_plot_data_pos_kr(df_feat_kr, flag_update=flag_update_kr)
 
-    If predictions are under-estimated, the actual evolution is going in a "BAD" way...  
-    If predictions are over-estimated, the actual evolution is going in a "GOOD" way...  
-      
-    But more the model learns from the different "waves", more the model is accurate.  
-        
-    '''  
-    markdown_info = '''
-    More info in my github below.  
-      
-    ***GitHub***: https://github.com/jeugregg/coronavirusModel
-      
-    ***DATA sources***: 
-    - Tested / Confirmed cases FR: https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19
-    - Météo France: https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
-    - Tested / Confirmed cases KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043376
-    - Confirmed cases by age KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043377
-    - Confirmed cases by area KR: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15043378
-    - Meteo South Korea (Seoul, Deagu, Busan): https://www.visualcrossing.com/weather-data
-    - Geoson Map South Korea: https://github.com/southkorea/southkorea-maps 
-    '''
-    
+
     str_country = "France"
 
     
@@ -190,7 +237,7 @@ def startup_layout():
             id="loading-fig-pos",
             type="default",
             children=[html.Div(id="loading-output-1", children=str_data_date), 
-                html.Div(id="loading-output-kr", children=str_date_kr, 
+                html.Div(id="loading-output-kr", children=str_data_date_kr, 
                 className="app-hide")]), 
             style={'display': 'inline-block', 'margin-right': 10}),
         html.Div(children=html.A(
@@ -208,7 +255,10 @@ def startup_layout():
                             df_plot_pred_all, str_date_mdl), 
                         className="graph-mdl"
                     ),
-                    dcc.Graph(id='covid-pos-graph-kr', className="app-hide"),
+                    dcc.Graph(id='covid-pos-graph-kr', className="app-hide",
+                        figure=create_fig_pos(df_plot_kr, df_plot_pred_kr, 
+                            df_plot_pred_all_kr, str_date_mdl_kr,
+                            area="South-Korea")),
                     html.Div(id='info_mdl', 
                         children=dcc.Markdown(children=markdown_info_mdl))
                 ]
@@ -295,14 +345,16 @@ def location_url_callback(pathname):
     return [value]
 
 @app.callback(
-    [dash.dependencies.Output("app-title", "children"),
-    dash.dependencies.Output('covid-pos-graph', 'className'),
+    [Output("app-title", "children"),
+    Output('covid-pos-graph', 'className'),
+    Output('covid-pos-graph-kr', 'className'),
     dash.dependencies.Output("div-rt-map", "className"),
     dash.dependencies.Output("div-rt-curve", "className"),
     dash.dependencies.Output("div-rt-map-kr", "className"),
     dash.dependencies.Output("div-rt-curve-kr", "className"),
     Output("loading-output-1", "className"),
-    Output("loading-output-kr", "className")],
+    Output("loading-output-kr", "className"),
+    Output("info_mdl", "children")],
     [dash.dependencies.Input('country-dropdown', 'value')],
     prevent_initial_call=True)
 def update_tabs(value):
@@ -328,8 +380,9 @@ def update_tabs(value):
                     figure=fig_curve)'''
 
         
-        return get_title(value), "app-hide", "app-hide", "app-hide", \
-            "app-map", "app-graph-map", "app-hide", "app-show-block"
+        return get_title(value), "app-hide", "graph-mdl", "app-hide", \
+            "app-hide", "app-map", "app-graph-map", "app-hide", \
+            "app-show-block", dcc.Markdown(children=markdown_info_mdl_kr)
     else:
         '''# prepare input data
         df_feat_fr, str_date_mdl, str_data_date = prepare_data_input(False)
@@ -345,16 +398,18 @@ def update_tabs(value):
         df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
         df_pos_fr.index = df_pos_fr["date"]'''
 
-        return get_title(value), "graph-mdl", "app-map", "app-graph-map", \
-            "app-hide", "app-hide", "app-show-block", "app-hide"
+        return get_title(value), "graph-mdl", "app-hide", "app-map", \
+            "app-graph-map", "app-hide", "app-hide", "app-show-block", \
+            "app-hide", dcc.Markdown(children=markdown_info_mdl)
             
 
-# updata map / curve in KR : actions on buttons or dropdown
+# update map / curve in KR : actions on buttons or dropdown
 @app.callback([Output('loading-graph-map-kr', 'children'),
     Output('covid-rt-map-kr', 'figure'),
     Output('covid-rt-dep-graph-kr', 'figure'),
     Output('graph_type_kr', 'children'),
-    Output('loading-output-kr', 'children')],
+    Output('loading-output-kr', 'children'),
+    Output('covid-pos-graph-kr', 'figure')],
     [Input('btn-conf', 'n_clicks'),
     Input('country-dropdown', 'value'),
     Input('covid-rt-map-kr', 'clickData'),
@@ -384,9 +439,12 @@ def update_map_kr_callback(n_clicks, dropdown_value, clickData,
     str_date_kr = dash.no_update
     # if update button : update KR data only
     if (button_id == "update-data"):
-        update_df_feat_kr()
-    
-    df_feat_kr = None
+        #update_df_feat_kr()
+        # prepare input data KR (update if available)
+        df_feat_kr, str_date_mdl_kr, str_data_date_kr = \
+            prepare_data_input_kr(flag_update=True)
+    else:
+        df_feat_kr = None
     
     # graph-type
     if (button_id == "btn-conf"):
@@ -473,8 +531,21 @@ def update_map_kr_callback(n_clicks, dropdown_value, clickData,
 
     if ((button_id == "update-data") & (df_feat_kr is not None)):
         str_date_kr = f'(up to: {df_feat_kr["date"].values[-1]})'
+        
+        # prepare plot data for positive cases KR
+        df_plot_kr, df_plot_pred_kr, df_plot_pred_all_kr, str_date_last_kr = \
+            prepare_plot_data_pos_kr(df_feat_kr, flag_update=True)
+        # update graph pos mdl
+        fig_mdl = create_fig_pos(df_plot_kr, df_plot_pred_kr, 
+            df_plot_pred_all_kr, str_date_mdl_kr, "South-Korea")
+
+        return "", fig_map, fig_curve, graph_type, str_date_kr, fig_mdl
+    else:
+        # no need to update graph pos mdl
+        return "", fig_map, fig_curve, graph_type, str_date_kr, dash.no_update
+
     
-    return "", fig_map, fig_curve, graph_type, str_date_kr
+    
 
 # button update data
 @app.callback(

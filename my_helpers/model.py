@@ -28,7 +28,7 @@ NB_DAYS_CV = 14 # state duration in nb days for contagious confirmed people
 # plot
 NB_PERIOD_PLOT = settings.NB_PERIOD_PLOT
 # model parameters
-TRAIN_SPLIT = 151
+TRAIN_SPLIT = 223
 PAST_HISTORY= NB_DAYS_CV # days used to predict next values in future
 FUTURE_TARGET = 7 # predict 3 days later
 STEP = 1
@@ -231,7 +231,7 @@ def update_pred_pos(df_feat_fr, from_disk=False):
         df_plot_pred.index = df_plot_pred["date"]
         if df_plot_pred["date"].min() <= df_feat_fr["date"].max():
             from_disk = False
-
+    
     # if no prediction or if from disk 
     if (not settings.PREDICT) | from_disk:
         df_plot_pred = pd.read_csv(PATH_DF_PLOT_PRED)

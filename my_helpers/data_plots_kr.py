@@ -19,7 +19,11 @@ from my_helpers.model import calc_sum_mobile
 from my_helpers.model import calc_rt_from_sum
 from my_helpers.model import NB_DAYS_CV
 from my_helpers.utils import clean_file
-
+from my_helpers.data_plots import update_pos
+from my_helpers.model_kr import update_pred_pos_kr
+from my_helpers.model_kr import update_pred_pos_all_kr
+from my_helpers.model_kr import prepare_data_features_kr
+from my_helpers.model_kr import TRAIN_SPLIT
 
 # DEFINITONS 
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
@@ -440,6 +444,14 @@ def get_update_df_feat_kr(date_now=None, force_update=False):
         
     return df_feat_kr_tmp
 
+def check_update_kr():
+    '''
+    Update available ?
+    '''
+    flag_update, flag_update_age, date_req_start, date_req_start_age, \
+        date_req_end = check_update_df_feat_kr()
+    return flag_update | flag_update_age
+    
 
 def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
     '''
@@ -592,6 +604,31 @@ def connect_api_meteo(date_req_start, date_req_end):
     
     return df_meteo_kr
 
+def prepare_plot_data_pos_kr(df_feat_kr, flag_update):
+    '''Prepare data for plot positive cases'''
+    # plot data for positive cases
+    df_plot = update_pos(df_feat_kr)
+    str_date_last = df_plot.date.max()
+    # predict 3 future days
+    flag_pred_disk = not(flag_update)
+    df_plot_pred = update_pred_pos_kr(df_feat_kr, flag_pred_disk)
+    # predict all past days
+    df_plot_pred_all = update_pred_pos_all_kr(df_feat_kr, flag_pred_disk)
 
+    return df_plot, df_plot_pred, df_plot_pred_all, str_date_last
 
+def prepare_data_input_kr(flag_update=True):
+    '''Prepare data input'''
+    if flag_update:
+        df_feat_kr = update_df_feat_kr()
+    else:
+        df_feat_kr = load_df_feat_kr()
 
+    df_feat_kr = prepare_data_features_kr(df_feat_kr)
+
+    # last date of training
+    str_date_mdl =  df_feat_kr.iloc[TRAIN_SPLIT]["date"]
+    # date of last data
+    str_data_date = f'(up to: {df_feat_kr["date"].values[-1]})'
+
+    return df_feat_kr, str_date_mdl, str_data_date

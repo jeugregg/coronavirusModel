@@ -18,7 +18,8 @@ from my_helpers.data_plots_kr import LIST_NAME_GEOJSON
 from my_helpers.data_plots_kr import LAT_LON_KR
 from my_helpers.data_plots_kr import ZOOM_KR
 
-def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
+def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl, 
+    area="France"):
     display_msg("create_fig_pos...")
     # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -63,7 +64,7 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl):
                 secondary_y=True)
 
     # Edit the layout
-    title_fig = '<b>COVID-19 Confirmed cases in France</b>' + \
+    title_fig = f'<b>COVID-19 Confirmed cases in {area}</b>' + \
         '<br>Model trained until <b>' + str_date_mdl + '</b>' + \
         '<br>predicts next {} days with last {} days until <b>' \
         .format(FUTURE_TARGET, PAST_HISTORY) + \
