@@ -84,6 +84,8 @@ The model is a simple LSTM Deep Learning Tensorflow model.
     
 It estimates the number of daily confirmed cases in France for next days by time-series forecast.  
     
+API France data from French Gouvernment are 4 days in late...  
+  
 For that, the model takes a period of 14 days to estimate the next 7 days.  
     
 Because of lack of data, it has been trained with only few past periods and validated on only very few periods!  

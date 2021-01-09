@@ -365,10 +365,12 @@ def check_update_df_feat_kr(date_now=None, force_update=False):
         date_req_start = DATE_FIRST_CASES_GOUV_KR
         date_req_start_age = DATE_FIRST_FEAT_OK_KR
     
-    if date_req_start >= date_now:
-            flag_update = False
+    if date_req_start > date_now:
+        #print("     date_req_start : ", date_req_start)
+        #print("update false")
+        flag_update = False
             
-    if date_req_start_age >= date_now:
+    if date_req_start_age > date_now:
             flag_update_age = False
     
     if not flag_update:
@@ -405,8 +407,8 @@ def get_update_df_feat_kr(date_now=None, force_update=False):
         
         # add day_num
         df_feat_kr_tmp['day_num'] = \
-        df_feat_kr_tmp["date"].astype(np.datetime64).dt.strftime("%w")
-        
+            df_feat_kr_tmp["date"].astype(np.datetime64).dt.strftime("%w")
+        df_feat_kr_tmp["day_num"] = df_feat_kr_tmp["day_num"].astype("float")
         # add areas
         response_body = connect_api_area_kr(date_req_start, date_req_end)
         df_area_kr = convert_xml_area_kr(response_body)
@@ -434,6 +436,18 @@ def get_update_df_feat_kr(date_now=None, force_update=False):
                 # if update for age but not for cases, have to load old df_feat 
                 df_feat_kr = load_df_feat_kr()
                 df_feat_kr_tmp = df_feat_kr.loc[df_age_kr.index]
+            else:
+                # if update age and cases
+                # find list of missiing dates
+                list_dates_missing = []
+                for index_curr in df_age_kr.index:
+                    if index_curr not in df_feat_kr_tmp.index:
+                        # add from df_feat the missing dates
+                        list_dates_missing.append(index_curr)
+                if len(list_dates_missing)>0:
+                    df_feat_kr = load_df_feat_kr()
+                    df_feat_kr_tmp = update_append(df_feat_kr_tmp, 
+                        df_feat_kr.loc[list_dates_missing])
 
             if LIST_NBC[0] not in df_feat_kr_tmp.columns:
                 print("joining...")
@@ -480,7 +494,6 @@ def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
         df_feat_kr["pos"] = df_feat_kr["nb_cases"].diff()
         df_feat_kr["test"] = df_feat_kr["nb_tests"].diff()
     
-
         # calculate sum-cases
         ser_sum = calc_sum_mobile(df_feat_kr["date"], df_feat_kr["pos"], 
                                   NB_DAYS_CV)
