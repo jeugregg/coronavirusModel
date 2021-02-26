@@ -41,7 +41,7 @@ PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
 PATH_DF_PLOT_PRED = PATH_TO_SAVE_DATA + '/' + 'df_plot_pred.csv'
 PATH_DF_PLOT_PRED_ALL = PATH_TO_SAVE_DATA + '/' + 'df_plot_pred_all.csv'
 PATH_MDL_SINGLE_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_single_step_pos_fr"
-PATH_MDL_MULTI_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_multi_step_pos_fr"
+PATH_MDL_MULTI_STEP = PATH_TO_SAVE_DATA + '/' + "mdl_multi_step_pos_fr_tcn"
 
 
 

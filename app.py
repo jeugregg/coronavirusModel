@@ -80,7 +80,9 @@ markdown_info_mdl = '''
 
 ***About Model***  
     
-The model is a simple LSTM Deep Learning Tensorflow model.  
+The model use here is a new TCN Deep Learning Tensorflow model.  
+    
+TCN : Temporal Convolutional Network (https://github.com/philipperemy/keras-tcn)
     
 It estimates the number of daily confirmed cases in France for next days by time-series forecast.  
     
