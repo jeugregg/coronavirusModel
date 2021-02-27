@@ -80,7 +80,7 @@ markdown_info_mdl = '''
 
 ***About Model***  
     
-The model use here is a new TCN Deep Learning Tensorflow model.  
+The prediction model is a new TCN Deep Learning Tensorflow model.  
     
 TCN : Temporal Convolutional Network (https://github.com/philipperemy/keras-tcn)
     
