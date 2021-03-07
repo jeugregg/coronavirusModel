@@ -12,12 +12,13 @@ visit http://0.0.0.0/ in your web browser.
 # IMPORT 
 
 # import bluit-in 
-
+#import logging
 import datetime
 import os
 import sys
+
 # import third party 
-#import flask
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -26,6 +27,7 @@ from dash.dependencies import Output
 from dash.dependencies import State
 from dash.exceptions import PreventUpdate
 import pandas as pd
+#from aws_logging_handlers.S3 import S3Handler
 # import project modules 
 import settings
 from my_helpers.dates import *
@@ -61,6 +63,7 @@ from my_helpers.utils import display_msg
 # DEFINITIONS
 
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
+BUCKET_LOGS = settings.BUCKET_NAME
 
 meta_tags=[{
       'name': 'viewport',
@@ -178,51 +181,70 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets,
 app.title = "App Covid Visu"
 server = app.server
 
+#logger = logging.getLogger('root')
+#logger.setLevel(logging.INFO)
+#s3_handler = S3Handler("logs/test_log", BUCKET_LOGS, workers=1, 
+#    encryption_options={}, max_file_size_bytes=1024)
+#formatter = logging.Formatter('[%(asctime)s] %(filename)s:%(lineno)d}' + \
+#    ' %(levelname)s - %(message)s')
+#s3_handler.setFormatter(formatter)
+
+#logger.addHandler(s3_handler)
+#logger.info("test info message")
+#logger.warning("test warning message")
+#logger.error("test error message")
+
+
 def startup_layout():
     '''
     startup web page
     '''
+    
+    
     display_msg("STARTUP...")
-    
-    #time_file_df_feat_date = get_file_date(PATH_DF_FEAT_FR)
-    #dtime_now  = datetime.datetime.now() - time_file_df_feat_date
+    #logger.info("STARTUP...")
+    try:
 
-    # update 
-    if settings.MODE_FORCE_UPDATE:
-        flag_update = True
-        flag_update_kr = True
-    else:
-        flag_update = check_update()
-        flag_update_kr = check_update_kr()
-    
-    # prepare input data
-    df_feat_fr, str_date_mdl, str_data_date = prepare_data_input(flag_update)
-    
-    # prepare plot data for positive cases
-    df_plot, df_plot_pred, df_plot_pred_all, str_date_last = \
-        prepare_plot_data_pos(df_feat_fr, flag_update)
+        # update 
+        if settings.MODE_FORCE_UPDATE:
+            flag_update = True
+            flag_update_kr = True
+        else:
+            flag_update = check_update()
+            flag_update_kr = check_update_kr()
+        
+        # prepare input data
+        df_feat_fr, str_date_mdl, str_data_date = prepare_data_input(flag_update)
+        
+        # prepare plot data for positive cases
+        df_plot, df_plot_pred, df_plot_pred_all, str_date_last = \
+            prepare_plot_data_pos(df_feat_fr, flag_update)
 
-    # prepare plot data for MAPS
-    df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum = \
-        prepare_plot_data_map(flag_update)
-    
-    df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
-    df_pos_fr.index = df_pos_fr["date"]
-    
-    # prepare input data KR
-    df_feat_kr, str_date_mdl_kr, str_data_date_kr = \
-        prepare_data_input_kr(flag_update=flag_update_kr)
-    
-    # prepare plot data for positive cases KR
-    df_plot_kr, df_plot_pred_kr, df_plot_pred_all_kr, str_date_last_kr = \
-        prepare_plot_data_pos_kr(df_feat_kr, flag_update=flag_update_kr)
+        # prepare plot data for MAPS
+        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum = \
+            prepare_plot_data_map(flag_update)
+        
+        df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
+        df_pos_fr.index = df_pos_fr["date"]
+        
+        # prepare input data KR
+        df_feat_kr, str_date_mdl_kr, str_data_date_kr = \
+            prepare_data_input_kr(flag_update=flag_update_kr)
+        
+        # prepare plot data for positive cases KR
+        df_plot_kr, df_plot_pred_kr, df_plot_pred_all_kr, str_date_last_kr = \
+            prepare_plot_data_pos_kr(df_feat_kr, flag_update=flag_update_kr)
 
 
-    str_country = "France"
+        str_country = "France"
 
-    
-    display_msg("STARTUP END.")
-    
+        
+        display_msg("STARTUP END.")
+        #logger.info("STARTUP END.")
+    except Exception as e:
+        #logger.error("ERROR STARTUP: " + str(e))
+        raise(e)
+
     return html.Div(children=[
         dcc.Location(id='url', refresh=False),
         html.H1(children=get_title(str_country), id="app-title"),
@@ -364,6 +386,7 @@ def location_url_callback(pathname):
 def update_tabs(value):
     
     display_msg("update_tabs ...")
+    #logger.info("update_tabs ...")
     if (value == "South Korea"):
         '''# load data kr
         df_feat_kr = load_df_feat_kr()
@@ -431,7 +454,7 @@ def update_map_kr_callback(n_clicks, dropdown_value, clickData,
         raise PreventUpdate
 
     display_msg("update_map_kr_callback_callback...")
-
+    #logger.info("update_map_kr_callback_callback...")
     # take context button
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -564,13 +587,15 @@ def update_map_kr_callback(n_clicks, dropdown_value, clickData,
 def update_fr(n_clicks, jsonified_pred, jsonified_pred_all, dropdown_value):
 
     display_msg("UPDATE DATA BUTTON ...")
-    
+    #logger.info("UPDATE DATA BUTTON ...")
     if (dropdown_value != "France"):
         raise PreventUpdate
 
     if n_clicks < 1: # no update at loading
         display_msg("Nothing to do")
+        #logger.info("Nothing to do")
         display_msg("UPDATE DATA BUTTON END.")
+        #logger.info("UPDATE DATA BUTTON END.")
         return dash.no_update
 
     flag_update = check_update()
@@ -587,6 +612,7 @@ def update_fr(n_clicks, jsonified_pred, jsonified_pred_all, dropdown_value):
         prepare_plot_data_map(flag_update)
 
     display_msg("UPDATE DATA BUTTON END.")
+    #logger.info("UPDATE DATA BUTTON END.")
     return str_data_date, \
         create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl), \
         create_fig_map(pt_fr_test_last, dep_fr, str_date_last)
@@ -614,6 +640,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
     mode_country_old, dep_old, hoverData):
     display_msg(" ")
     display_msg("display_click_data ...")
+    #logger.info("display_click_data ...")
     print("clickData: ", clickData)
     print("hoverData: ", hoverData)
     
@@ -715,6 +742,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
         dep_curr =""
 
     display_msg("display_click_data END.")
+    #logger.info("display_click_data END.")
     return "", fig_out, graph_type, id_button, mode_country, dep_curr
     
 
