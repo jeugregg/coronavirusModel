@@ -53,7 +53,7 @@ The model is hosted on AWS EC2 Cluster (t2.micro).
 Because memory needed to do prediction is too high for t2.micro instance, I use AWS Lambda API call only for this purpose.  
 I have implemented it thanks to [serverless framework](https://www.serverless.com/).  
 
-But, the tensorflow model have to be converted in Tensorflow LITE to respect storage limit for AWS lambda function.  
+But, the tensorflow model have to be converted in Tensorflow LITE to respect storage limit for AWS lambda function. [conversion](https://github.com/jeugregg/coronavirusModel/blob/master/ModelCovidTimeSeries-convert-publish-KR.ipynb)  
 For the conversion, LSTM neural network needs special format.  
 Have a look at this [tutorial](https://colab.research.google.com/github/tensorflow/tensorflow/blob/master/tensorflow/lite/examples/experimental_new_converter/Keras_LSTM_fusion_Codelab.ipynb).  
 
