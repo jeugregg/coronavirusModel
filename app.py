@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-''' App Covid Visu web app
+''' App Covid Visu web app 
 COVID-19 in France Dashboard: Datavisualization & Model
 Map of Reproduction number in France by "départements"
 A tensorflow deep leanring model try to estimate next 7 days confirmed cases in 
