@@ -14,7 +14,9 @@ import requests
 # project libs
 import settings
 from my_helpers.dates import add_days
+from my_helpers.dates import generate_list_dates
 from my_helpers.dates import create_date_range_lim
+from my_helpers.dates import check_cont_dates
 from my_helpers.model import calc_sum_mobile
 from my_helpers.model import calc_rt_from_sum
 from my_helpers.model import NB_DAYS_CV
@@ -337,7 +339,20 @@ def convert_xml_age_kr(response_body):
         
         
     return df_age_kr
-    
+
+def get_first_day_extrap_kr(df_feat_kr_tmp):
+    '''
+    Get the first date of extrapolation in Korean Data
+    It could be useful to try to update it later when data will be good again
+    '''
+    str_date_extrap = None
+
+    if "extrap" in df_feat_kr_tmp.columns:
+        df_extrap = df_feat_kr_tmp[df_feat_kr_tmp["extrap"]]
+        if df_extrap.shape[0] > 0:
+            str_date_extrap = df_extrap["date"].min()
+
+    return str_date_extrap
 
 # check update ?
 def check_update_df_feat_kr(date_now=None, force_update=False):
@@ -354,7 +369,15 @@ def check_update_df_feat_kr(date_now=None, force_update=False):
     
     if os.path.isfile(PATH_DF_FEAT_KR):
         df_feat_kr = pd.read_csv(PATH_DF_FEAT_KR)
-        date_req_start = add_days(df_feat_kr["date"].max(), 1)
+        # first date to download for cases
+        date_first_extrap = get_first_day_extrap_kr(df_feat_kr)
+        if date_first_extrap is not None: 
+            # take first date of extrap to try to update it
+            date_req_start = date_first_extrap
+        else:
+            # normal mode : take last date +1
+            date_req_start = add_days(df_feat_kr["date"].max(), 1)
+        # first date to download for ages
         date_req_start_age = \
             df_feat_kr[df_feat_kr["daily_age"].isna() & \
                 (df_feat_kr["date"] > DATE_FIRST_FEAT_OK_KR)]["date"].min()
@@ -446,8 +469,23 @@ def get_update_df_feat_kr(date_now=None, force_update=False):
                         list_dates_missing.append(index_curr)
                 if len(list_dates_missing)>0:
                     df_feat_kr = load_df_feat_kr()
-                    df_feat_kr_tmp = update_append(df_feat_kr_tmp, 
-                        df_feat_kr.loc[list_dates_missing])
+                    # check if missing dates exist in old data
+                    list_dates_missing_ok = [] # exists
+                    list_dates_missing_nok = [] # doesnt exist
+                    for index_missing in list_dates_missing:
+                        if index_missing in df_feat_kr.index:
+                            list_dates_missing_ok.append(index_missing)
+                        else:
+                            list_dates_missing_nok.append(index_missing)
+                    # treat ok dates
+                    if len(list_dates_missing_ok)>0:
+                        df_feat_kr_tmp = update_append(df_feat_kr_tmp, 
+                            df_feat_kr.loc[list_dates_missing_ok])
+                    # treat nok dates (not in old data or in new data)
+                    if len(list_dates_missing_nok)>0:
+                        print("API KR ERROR...")
+                        for date_missing_nok in list_dates_missing_nok:
+                            print("Missing Date : ", date_missing_nok)
 
             if LIST_NBC[0] not in df_feat_kr_tmp.columns:
                 print("joining...")
@@ -466,6 +504,37 @@ def check_update_kr():
         date_req_end = check_update_df_feat_kr()
     return flag_update | flag_update_age
     
+def extrap_missing_kr(df_feat_kr_tmp, list_missing):
+    '''
+    Extrapolate data if missing dates in data
+    '''
+    def fun_apply_extrap(date_curr):
+        return date_curr in list_missing
+
+    if len(list_missing) == 0:
+        return df_feat_kr_tmp
+    '''for dates_curr in list_missing:
+        list_dates_tmp = df_feat_kr_tmp["date"].tolist()
+        # search day-1
+        date_before = add_days(dates_curr, -1)
+        if date_before in list_dates_tmp:'''
+    str_date_min = min(df_feat_kr_tmp["date"])
+    str_date_min = add_days(str_date_min, -1) 
+    list_range = generate_list_dates(str_date_min, 
+                                 max(df_feat_kr_tmp["date"]))
+
+    new_index = pd.DatetimeIndex(list_range)
+    df_feat_kr_tmp = df_feat_kr_tmp.reindex(new_index, method='ffill')
+
+    df_feat_kr_tmp["date"] = \
+        pd.to_datetime(df_feat_kr_tmp.index).strftime("%Y-%m-%d").tolist()
+
+    df_feat_kr_tmp["extrap"] = False
+    
+    df_feat_kr_tmp["extrap"] = df_feat_kr_tmp["date"].apply(fun_apply_extrap)
+
+    return df_feat_kr_tmp
+
 
 def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
     '''
@@ -475,9 +544,12 @@ def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
     '''
     # get just new data 
     df_feat_kr_tmp = get_update_df_feat_kr(date_now, force_update)
-    
     # what to do with new data ? : force to be updated totally ?
     if force_update:
+        # check data
+        # check dates continuity
+        list_missing = check_cont_dates(df_feat_kr_tmp["date"].tolist())
+        df_feat_kr_tmp = extrap_missing_kr(df_feat_kr_tmp, list_missing)
         df_feat_kr = df_feat_kr_tmp
     else:
         if os.path.isfile(PATH_DF_FEAT_KR):
@@ -490,6 +562,9 @@ def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
         if (df_feat_kr_tmp is None) & (not force_calc):
             return df_feat_kr
         
+        # check dates continuity
+        list_missing = check_cont_dates(df_feat_kr["date"].tolist())
+        df_feat_kr = extrap_missing_kr(df_feat_kr, list_missing)
         # calculate derivative values    
         df_feat_kr["pos"] = df_feat_kr["nb_cases"].diff()
         df_feat_kr["test"] = df_feat_kr["nb_tests"].diff()

@@ -45,6 +45,24 @@ def days_between(str_date_0, str_date_1):
     return str_date_start'''
     return delta
 
+def check_cont_dates(list_dates, date_format="%Y-%m-%d"):
+    '''
+    Check dates continuity in a list
+
+    return list missing dates
+    '''
+    # create range from min & max dates
+    str_date_min = min(list_dates)
+    str_date_min = add_days(str_date_min, -1) # add first day
+    str_date_max = max(list_dates)
+    list_range = generate_list_dates(str_date_min, str_date_max)
+    # search missing days
+    list_missing = []
+    for day_curr in list_range:
+        if day_curr not in list_dates:
+            list_missing.append(day_curr)
+    return list_missing
+
 def get_file_date(path_to_file):
     '''
     get file modification date 
