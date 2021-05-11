@@ -37,7 +37,7 @@ def predict(event, context):
     for list_curr in list_list_in:
         list_arr_in.append(np.array(list_curr))
 
-    print("INPUT : nb. arrays : {} / arrays shape: {}".format(len(list_arr_in), 
+    print("INPUT : nb. arr. : {} / arrays shape: {}".format(len(list_arr_in), 
                                              list_arr_in[0].shape))
 
     # prepare TFlite model

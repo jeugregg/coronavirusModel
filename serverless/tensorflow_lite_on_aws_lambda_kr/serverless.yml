@@ -52,18 +52,17 @@ provider:
 
 # you can add packaging information here
 #package:
-#  include:
-#    - include-me.py
-#    - include-me-dir/**
 #  exclude:
-#    - exclude-me.py
-#    - exclude-me-dir/**
+#    - "**/**"
+#  include:
+#    - handler.py
+#    - converted_model.tflite
+
 package:
-  exclude:
-    - "**/**"
-  include:
-    - handler.py
-    - converted_model.tflite
+  patterns:
+    - '!**/**'
+    - 'handler.py'
+    - 'converted_model.tflite'
 
 functions:
   predict:
