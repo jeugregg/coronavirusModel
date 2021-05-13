@@ -28,7 +28,7 @@ NB_DAYS_CV = 14 # state duration in nb days for contagious confirmed people
 # plot
 NB_PERIOD_PLOT = settings.NB_PERIOD_PLOT
 # model parameters
-TRAIN_SPLIT = 272
+TRAIN_SPLIT = 346 #272
 PAST_HISTORY= NB_DAYS_CV # days used to predict next values in future
 FUTURE_TARGET = 7 # predict 3 days later
 STEP = 1
