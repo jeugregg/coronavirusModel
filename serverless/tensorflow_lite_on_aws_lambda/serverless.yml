@@ -58,12 +58,12 @@ provider:
 #  exclude:
 #    - exclude-me.py
 #    - exclude-me-dir/**
+
 package:
-  exclude:
-    - "**/**"
-  include:
-    - handler.py
-    - converted_model.tflite
+  patterns:
+    - '!**/**'
+    - 'handler.py'
+    - 'converted_model.tflite'
 
 functions:
   predict:
