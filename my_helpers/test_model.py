@@ -42,7 +42,7 @@ TRAIN_SPLIT = model.TRAIN_SPLIT
 FUTURE_TARGET = model.FUTURE_TARGET
 STEP = model.STEP
 
-ERROR_REL_MAX = 57 # in %
+ERROR_REL_MAX = 50 # in %
 
 # prepare test
 
