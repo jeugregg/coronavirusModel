@@ -427,24 +427,24 @@ def get_update_df_feat_kr(date_now=None, force_update=False):
     if flag_update:
         response_body = connect_api_cases_kr(date_req_start, date_req_end)
         df_feat_kr_tmp = convert_xml_to_df_feat_kr(response_body)
-        
-        # add day_num
-        df_feat_kr_tmp['day_num'] = \
-            df_feat_kr_tmp["date"].astype(np.datetime64).dt.strftime("%w")
-        df_feat_kr_tmp["day_num"] = df_feat_kr_tmp["day_num"].astype("float")
-        # add areas
-        response_body = connect_api_area_kr(date_req_start, date_req_end)
-        df_area_kr = convert_xml_area_kr(response_body)
-        df_feat_kr_tmp = df_feat_kr_tmp.join(df_area_kr)
-        
-        # add meteo
-        date_req_start_meteo = max(date_req_start, DATE_FIRST_FEAT_OK_KR)
-        date_req_start_meteo = max(date_req_start_meteo, date_req_start_age)
-        df_meteo = connect_api_meteo(date_req_start_meteo, 
-                                     date_req_end)
-        # save meteo
-        df_meteo.to_csv(PATH_DF_METEO_KR, index=False)
-        df_feat_kr_tmp = df_feat_kr_tmp.join(df_meteo)
+        if (df_feat_kr_tmp is not None):
+            # add day_num
+            df_feat_kr_tmp['day_num'] = \
+                df_feat_kr_tmp["date"].astype(np.datetime64).dt.strftime("%w")
+            df_feat_kr_tmp["day_num"] = df_feat_kr_tmp["day_num"].astype("float")
+            # add areas
+            response_body = connect_api_area_kr(date_req_start, date_req_end)
+            df_area_kr = convert_xml_area_kr(response_body)
+            df_feat_kr_tmp = df_feat_kr_tmp.join(df_area_kr)
+            
+            # add meteo
+            date_req_start_meteo = max(date_req_start, DATE_FIRST_FEAT_OK_KR)
+            date_req_start_meteo = max(date_req_start_meteo, date_req_start_age)
+            df_meteo = connect_api_meteo(date_req_start_meteo, 
+                                        date_req_end)
+            # save meteo
+            df_meteo.to_csv(PATH_DF_METEO_KR, index=False)
+            df_feat_kr_tmp = df_feat_kr_tmp.join(df_meteo)
         
     else:
         df_feat_kr_tmp = None
