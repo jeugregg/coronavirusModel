@@ -374,17 +374,18 @@ def startup_layout(force_update=None, message=""):
 
 try:
     app.layout = startup_layout(
-            force_update=False,
+            force_update=None,
             message="App : OK",
         )
-except Exception as e:
+except Exception as e1:
     try:
         app.layout = startup_layout(
-            force_update=False,
-            message=e,
+            force_update=True,
+            message=e1,
         )
-    except Exception as e:
-        app.layout = create_error_msg(e)
+    except Exception as e2:
+
+        app.layout = create_error_msg(str(e1) + "\n" + str(e2))
 
 @app.callback([Output("country-dropdown", "value")],
 [Input('url', 'pathname')])
