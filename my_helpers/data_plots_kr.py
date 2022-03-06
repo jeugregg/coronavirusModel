@@ -628,8 +628,68 @@ def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
     # save
     if df_feat_kr is not None:
         clean_file(PATH_DF_FEAT_KR, flag_copy=True, suffix="old")
+        # patch : no calculable rate_pos in korean database 
+        # (suspended data : ACC_EXAM_CNT data)
+        '''
+        rate_pos_mean = df_feat_kr[
+            (df_feat_kr.rate_pos > 0) 
+            & (df_feat_kr.rate_pos < 50)
+        ]["rate_pos"].mean()
+        df_feat_kr.loc[
+            (df_feat_kr.rate_pos.isna()) 
+            | (df_feat_kr.rate_pos > 50), 
+            "rate_pos"
+        ] = rate_pos_mean
+        '''
+        df_feat_kr = patch_data_kr(df_feat_kr)
         df_feat_kr.to_csv(PATH_DF_FEAT_KR, index=False)
 
+    return df_feat_kr
+
+def patch_data_kr(df_feat_kr):
+    # patch : no calculable rate_pos in korean database 
+    # (suspended data : ACC_EXAM_CNT data)
+    flag_patched = False
+    if (len(df_feat_kr[
+        (df_feat_kr.rate_pos.isna())
+        | (df_feat_kr.rate_pos > 100)
+        | (df_feat_kr.rate_pos < 0)
+        ]) > 0):
+        # mean calc
+        rate_pos_mean = df_feat_kr[
+            (df_feat_kr.rate_pos > 0) 
+            & (df_feat_kr.rate_pos <= 100)
+        ]["rate_pos"].mean()
+        # apply mean
+        df_feat_kr.loc[
+            (df_feat_kr.rate_pos.isna()) 
+            | (df_feat_kr.rate_pos > 100)
+            | (df_feat_kr.rate_pos < 0), 
+            "rate_pos"
+        ] = rate_pos_mean
+        flag_patched = True
+
+    if (len(df_feat_kr[
+        (df_feat_kr.test.isna())
+        | (df_feat_kr.test > 1e9)
+        | (df_feat_kr.test <= 0)
+        ]) > 0):
+        # mean calc
+        test_mean = df_feat_kr[
+            (df_feat_kr.test > 0) 
+            & (df_feat_kr.test < 1e9)
+        ]["test"].mean()  
+        # apply mean
+        df_feat_kr.loc[
+            (df_feat_kr.test.isna()) 
+            | (df_feat_kr.test > 1e9)
+            | (df_feat_kr.test <= 0), 
+            "test"
+        ] = test_mean
+        flag_patched = True
+    
+    if flag_patched:
+        df_feat_kr.to_csv(PATH_DF_FEAT_KR, index=False) 
     return df_feat_kr
 
 def load_df_feat_kr():
@@ -711,6 +771,9 @@ def prepare_data_input_kr(flag_update=True):
         df_feat_kr = update_df_feat_kr()
     else:
         df_feat_kr = load_df_feat_kr()
+        # check pos rate & test
+        df_feat_kr = patch_data_kr(df_feat_kr)
+        
 
     df_feat_kr = prepare_data_features_kr(df_feat_kr)
 

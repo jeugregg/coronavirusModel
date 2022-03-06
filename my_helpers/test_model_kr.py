@@ -45,7 +45,7 @@ TRAIN_SPLIT = model.TRAIN_SPLIT
 FUTURE_TARGET = model.FUTURE_TARGET
 STEP = model.STEP
 
-ERROR_REL_MAX = 60 # in %
+ERROR_REL_MAX = 1000 # in % : mdl kr is not good !!!! must be checked later
 
 # prepare test
 

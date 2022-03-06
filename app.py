@@ -193,22 +193,37 @@ server = app.server
 #logger.info("test info message")
 #logger.warning("test warning message")
 #logger.error("test error message")
+'''
+                html.Button(
+                    'Force Update!', 
+                    id='force-update-button', 
+                    n_clicks=0,
+                ),
+'''
+def create_error_msg(e):
+    return html.Div([
+                dcc.Textarea(
+                    id='textarea-logs',
+                    value=f"{e}",
+                    style={'width': '100%', 'height': 200},
+                ),
 
+            ])
 
-def startup_layout():
+def startup_layout(force_update=None, message=""):
     '''
     startup web page
     '''
-    
-    
     display_msg("STARTUP...")
     #logger.info("STARTUP...")
     try:
-
-        # update 
+        # update
         if settings.MODE_FORCE_UPDATE:
             flag_update = True
             flag_update_kr = True
+        elif force_update is not None:
+            flag_update = force_update
+            flag_update_kr = force_update
         else:
             flag_update = check_update()
             flag_update_kr = check_update_kr()
@@ -235,15 +250,15 @@ def startup_layout():
         df_plot_kr, df_plot_pred_kr, df_plot_pred_all_kr, str_date_last_kr = \
             prepare_plot_data_pos_kr(df_feat_kr, flag_update=flag_update_kr)
 
-
         str_country = "France"
 
-        
         display_msg("STARTUP END.")
         #logger.info("STARTUP END.")
     except Exception as e:
         #logger.error("ERROR STARTUP: " + str(e))
+
         raise(e)
+    
 
     return html.Div(children=[
         dcc.Location(id='url', refresh=False),
@@ -272,31 +287,31 @@ def startup_layout():
             target="_blank"), style={'display': 'inline-block'}),
 
         dcc.Tabs(id='tabs-app', value='tab-mdl', children=[
-            dcc.Tab(id="tab-mdl", 
-                label='Evolution & Model', 
-                value='tab-mdl', 
+            dcc.Tab(id="tab-mdl",
+                label='Evolution & Model',
+                value='tab-mdl',
                 children=[
                     dcc.Graph(id='covid-pos-graph',
-                        figure=create_fig_pos(df_plot, df_plot_pred, 
-                            df_plot_pred_all, str_date_mdl), 
+                        figure=create_fig_pos(df_plot, df_plot_pred,
+                            df_plot_pred_all, str_date_mdl),
                         className="graph-mdl"
                     ),
                     dcc.Graph(id='covid-pos-graph-kr', className="app-hide",
-                        figure=create_fig_pos(df_plot_kr, df_plot_pred_kr, 
+                        figure=create_fig_pos(df_plot_kr, df_plot_pred_kr,
                             df_plot_pred_all_kr, str_date_mdl_kr,
                             area="South-Korea")),
-                    html.Div(id='info_mdl', 
+                    html.Div(id='info_mdl',
                         children=dcc.Markdown(children=markdown_info_mdl))
                 ]
             ),
             dcc.Tab(id="tab-map",
                 label='Maps', 
                 value='tab-map', children=[
-                html.Div(id="div-rt-map", 
+                html.Div(id="div-rt-map",
                     children=[
                         dcc.Graph(id='covid-rt-map',
-                            figure=create_fig_map(pt_fr_test_last, dep_fr, 
-                            str_date_last), 
+                            figure=create_fig_map(pt_fr_test_last, dep_fr,
+                            str_date_last),
                             )], 
                     n_clicks=0, 
                     className="app-map"
@@ -353,10 +368,23 @@ def startup_layout():
         html.Div(id='dep', style={'display': 'none'},
             children=""),
         html.Div(id='info', 
-            children=dcc.Markdown(children=markdown_info))
+            children=dcc.Markdown(children=markdown_info)),
+        create_error_msg(message),
         ])
 
-app.layout = startup_layout
+try:
+    app.layout = startup_layout(
+            force_update=False,
+            message="App : OK",
+        )
+except Exception as e:
+    try:
+        app.layout = startup_layout(
+            force_update=False,
+            message=e,
+        )
+    except Exception as e:
+        app.layout = create_error_msg(e)
 
 @app.callback([Output("country-dropdown", "value")],
 [Input('url', 'pathname')])
