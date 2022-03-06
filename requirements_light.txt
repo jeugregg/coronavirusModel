@@ -1,6 +1,6 @@
 flask==2.0.3
 dash==1.14.0
 pandas==1.0.1
-numpy==1.19.5
+numpy==1.21.0
 plotly==4.5.2
 requests==2.23.0
