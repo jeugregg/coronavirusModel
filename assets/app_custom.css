@@ -3,18 +3,21 @@
     width: 53%;
     float: left;
     margin-right: 1px;
+    /*height: 90vh;*/
 }
 .app-graph-map {
     width: 44%;
     display: inline-block;
     margin-top: 0px;
+     /*height: 90vh;*/
 }
 
 .graph-mdl {
     margin-top: 10px;
+    height: 90vh;
 }
 
-@media screen and (max-width: 420px) {
+@media screen and (max-width: 600px) {
     .app-map {
         width: 100%;
     }

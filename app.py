@@ -16,12 +16,15 @@ visit http://0.0.0.0/ in your web browser.
 import datetime
 import os
 import sys
+import traceback
 
 # import third party 
 
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
+#import dash_core_components as dcc
+from dash import dcc
+#import dash_html_components as html
+from dash import html
 from dash.dependencies import Input
 from dash.dependencies import Output
 from dash.dependencies import State
@@ -256,7 +259,7 @@ def startup_layout(force_update=None, message=""):
         #logger.info("STARTUP END.")
     except Exception as e:
         #logger.error("ERROR STARTUP: " + str(e))
-
+        traceback.print_tb(e.__traceback__)
         raise(e)
     
 
@@ -294,7 +297,7 @@ def startup_layout(force_update=None, message=""):
                     dcc.Graph(id='covid-pos-graph',
                         figure=create_fig_pos(df_plot, df_plot_pred,
                             df_plot_pred_all, str_date_mdl),
-                        className="graph-mdl"
+                        className="graph-mdl",
                     ),
                     dcc.Graph(id='covid-pos-graph-kr', className="app-hide",
                         figure=create_fig_pos(df_plot_kr, df_plot_pred_kr,
@@ -305,51 +308,61 @@ def startup_layout(force_update=None, message=""):
                 ]
             ),
             dcc.Tab(id="tab-map",
-                label='Maps', 
-                value='tab-map', children=[
-                html.Div(id="div-rt-map",
-                    children=[
-                        dcc.Graph(id='covid-rt-map',
-                            figure=create_fig_map(pt_fr_test_last, dep_fr,
-                            str_date_last),
-                            )], 
-                    n_clicks=0, 
-                    className="app-map"
-                ),
-                html.Div(id="div-rt-map-kr", 
-                    children=[
-                        html.Button('Confirmed', id='btn-conf', n_clicks=0,
-                            style={"padding-right": 15, "padding-left": 15}),
-                        html.Button('Tested', id='btn-test', n_clicks=0,
-                            style={"padding-right": 15, "padding-left": 15}),
-                        html.Button('Rt', id='btn-rt', n_clicks=0, 
-                            style={"padding-right": 15, "padding-left": 15}),
-                        html.Button('South Korea', id='btn-kr', n_clicks=0,
-                            style={"padding-right": 15, "padding-left": 15}),
-                        dcc.Graph(id='covid-rt-map-kr')
-                    ], 
-                    n_clicks=0, 
-                    className="app-hide"
-                ),
-                html.Div(id="div-rt-curve", 
-                    children=[
-                        dcc.Loading(id="loading-graph-map", type="default"),
-                        dcc.Graph(id='covid-rt-dep-graph', 
-                            figure=create_fig_pos_dep("Paris", df_code_dep, 
-                                df_dep_r0, df_pos_fr, df_dep_sum)
-                        )
-                    ], 
-                    className="app-graph-map"
-                ),
-                html.Div(id="div-rt-curve-kr", 
-                    children=[
-                        dcc.Loading(id="loading-graph-map-kr", type="default"),
-                        dcc.Graph(id='covid-rt-dep-graph-kr')
-                    ], 
-                    className="app-hide"
-                )
+                label='Maps',
+                value='tab-map',
+                children=[
+                    html.Div(id="div-rt-map",
+                        children=[
+                            dcc.Graph(id='covid-rt-map',
+                                figure=create_fig_map(pt_fr_test_last, dep_fr,
+                                str_date_last),
+                                )],
+                        n_clicks=0,
+                        className="app-map"
+                    ),
+                    html.Div(id="div-rt-map-kr",
+                        children=[
+                            html.Button('Confirmed', id='btn-conf', n_clicks=0,
+                                style={"padding-right": 15, "padding-left": 15}),
+                            html.Button('Tested', id='btn-test', n_clicks=0,
+                                style={"padding-right": 15, "padding-left": 15}),
+                            html.Button('Rt', id='btn-rt', n_clicks=0, 
+                                style={"padding-right": 15, "padding-left": 15}),
+                            html.Button('South Korea', id='btn-kr', n_clicks=0,
+                                style={"padding-right": 15, "padding-left": 15}),
+                            dcc.Graph(id='covid-rt-map-kr')
+                        ], 
+                        n_clicks=0,
+                        className="app-hide"
+                    ),
+                    html.Div(id="div-rt-curve",
+                        children=[
+                            dcc.Loading(id="loading-graph-map", type="default"),
+                            dcc.Graph(id='covid-rt-dep-graph',
+                                figure=create_fig_pos_dep(
+                                    "Paris",
+                                    df_code_dep,
+                                    df_dep_r0,
+                                    df_pos_fr,
+                                    df_dep_sum,
+                                )
+                            )
+                        ],
+                        className="app-graph-map"
+                    ),
+                    html.Div(id="div-rt-curve-kr",
+                        children=[
+                            dcc.Loading(
+                                id="loading-graph-map-kr",
+                                type="default",
+                            ),
+                            dcc.Graph(id='covid-rt-dep-graph-kr')
+                        ], 
+                        className="app-hide"
+                    )
 
-            ])
+                ]
+            )
             
         ], style={'margin-top': 10}),
         # Hidden div inside the app that stores the intermediate value
@@ -384,8 +397,9 @@ except Exception as e1:
             message=e1,
         )
     except Exception as e2:
-
-        app.layout = create_error_msg(str(e1) + "\n" + str(e2))
+        str_err = traceback.format_exc()
+        #app.layout = create_error_msg(str(e1) + "\n" + str(e2))
+        app.layout = create_error_msg(str_err)
 
 @app.callback([Output("country-dropdown", "value")],
 [Input('url', 'pathname')])
@@ -403,14 +417,14 @@ def location_url_callback(pathname):
     [Output("app-title", "children"),
     Output('covid-pos-graph', 'className'),
     Output('covid-pos-graph-kr', 'className'),
-    dash.dependencies.Output("div-rt-map", "className"),
-    dash.dependencies.Output("div-rt-curve", "className"),
-    dash.dependencies.Output("div-rt-map-kr", "className"),
-    dash.dependencies.Output("div-rt-curve-kr", "className"),
+    Output("div-rt-map", "className"),
+    Output("div-rt-curve", "className"),
+    Output("div-rt-map-kr", "className"),
+    Output("div-rt-curve-kr", "className"),
     Output("loading-output-1", "className"),
     Output("loading-output-kr", "className"),
     Output("info_mdl", "children")],
-    [dash.dependencies.Input('country-dropdown', 'value')],
+    [Input('country-dropdown', 'value')],
     prevent_initial_call=True)
 def update_tabs(value):
     

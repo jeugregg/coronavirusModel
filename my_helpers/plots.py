@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-''' 
-Helpers for plots 
 '''
-# import bluit-in 
+Helpers for plots
+'''
+# import bluit-in
 import math
-# import third party 
+# import third party
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -71,7 +71,7 @@ def create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl,
         df_plot_pred["date"].max() + '</b>'
     fig.update_layout(title=title_fig, yaxis_title='nb <b>Total</b> cases')
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
-    fig.update_layout(height=600)
+    #fig.update_layout(height=600)
 
     fig.update_yaxes(title_text="nb <b>Daily</b> cases", secondary_y=True)
     display_msg("create_fig_pos END")
@@ -103,7 +103,7 @@ def create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last):
     I_dep = 0
     #list_color = []
     for row in range(nb_row):
-        for col in range(nb_col):   
+        for col in range(nb_col):
             dep_num_curr = list_num_dep[I_dep]
             dep_curr = df_code_dep.loc[df_code_dep["code"] == dep_num_curr, 
                                     "name"].values[0]
@@ -118,26 +118,26 @@ def create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last):
                 color_curr = "blue"
         
             
-            fig.add_trace(go.Scatter(x=df_dep_r0["date"], 
+            fig.add_trace(go.Scatter(x=df_dep_r0["date"],
                         y=df_dep_r0[dep_num_curr],
-                        mode='lines', name=dep_curr, 
+                        mode='lines', name=dep_curr,
                         line=dict(color=color_curr),
-                        fill='tozeroy'), 
+                        fill='tozeroy'),
                         row=row+1, col=col+1)
             
-            fig.add_trace(go.Scatter(x=[df_dep_r0["date"][0], 
-                                        df_dep_r0["date"][-1]], 
+            fig.add_trace(go.Scatter(x=[df_dep_r0["date"][0],
+                                        df_dep_r0["date"][-1]],
                                     y=[1,1],
-                                    mode='lines', 
+                                    mode='lines',
                                     line=dict(color="red", dash='dash'),
-                                    hoverinfo="skip"), 
+                                    hoverinfo="skip"),
                         row=row+1, col=col+1)
             I_dep +=1
             
             if I_dep >= nb_dep: #nb_dep:
                 break
         if I_dep >= nb_dep: #nb_dep:
-                break 
+            break
 
     #fig.update_traces(patch=dict(font=dict(size=6)))
     for I, subplot_title_curr in enumerate(fig['layout']['annotations']):
@@ -146,7 +146,7 @@ def create_fig_rt(df_dep_r0, df_code_dep, pt_fr_test_last):
         subplot_title_curr['yshift'] = -10
 
     fig.update_layout(
-        height=1800,
+        #height=600,
         title="Rt: Estimated Reproduction Nb. in France ( until {} )".format( \
             df_dep_r0['date'].max()),
         showlegend=False,
@@ -269,7 +269,7 @@ def create_fig_map(pt_fr_test_last, dep_fr, str_date_last):
 
     fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
     fig.update_layout(annotations=annot_conf)
-
+    #fig.update_layout(height=600)
     fig.update_traces(colorbar=dict(thicknessmode="pixels", thickness=10,
         len=0.8,
         x=0.9,
@@ -314,7 +314,7 @@ def create_fig_map_kr(df_feat_kr, list_col, label):
 
     fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
     fig.update_layout(annotations=annot_conf)
-
+    #fig.update_layout(height=600)
     fig.update_traces(colorbar=dict(thicknessmode="pixels", thickness=10,
         len=0.8,
         x=0.9,
@@ -382,7 +382,7 @@ def figure_rt(ser_rt, dep_curr, sum_pos_last, country="France"):
     )
 
     fig.update_layout(margin={"r":0,"t":70, "l":50}) 
-
+    #fig.update_layout(height=600)
     fig.update_yaxes(title_standoff=0)
     return fig
 
@@ -468,7 +468,7 @@ def figure_pos(ser_pos, ser_sum_pos, dep_curr, rt_last):
     fig.update_yaxes({"color": "blue"}, secondary_y=True) 
     fig.update_layout(margin={"r":0,"t":70, "l":50}) 
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
-    
+    #fig.update_layout(height=600)
     return fig
 
 def create_fig_pos_dep(dep_curr, df_code_dep, df_dep_r0, 
@@ -540,7 +540,7 @@ def create_fig_pos_rate(df_feat_fr, country="France"):
     fig.update_yaxes({"color": "blue"}, secondary_y=True)
     fig.update_layout(margin={"r":0,"t":70, "l":50}) 
     fig.update_layout(legend_orientation="h", legend=dict(x=0, y=1))
-
+    #fig.update_layout(height=600)
     fig.add_annotation(
                 x=0,
                 y=-0.18,

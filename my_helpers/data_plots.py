@@ -31,7 +31,7 @@ from my_helpers.model import NB_DAYS_CV, calc_rt_from_sum, calc_sum_mobile
 # DEFINITIONS
 PATH_TO_SAVE_DATA = settings.PATH_TO_SAVE_DATA
 URL_CSV_GOUV_FR = 'https://www.data.gouv.fr/' + \
-    'fr/datasets/r/406c6a23-e283-4300-9484-54e78c8ae675'
+    'fr/datasets/r/674bddab-6d61-4e59-b0bd-0be535490db0'
 PATH_DF_GOUV_FR_RAW = PATH_TO_SAVE_DATA + '/' + 'df_gouv_fr_raw.csv'
 NB_POS_DATE_MIN_DF_FEAT = 140227 # on 12/05/2020
 NB_POS_DATE_MIN_DF_FEAT_OLD = NB_POS_DATE_MIN_DF_FEAT - 38892
@@ -59,8 +59,11 @@ def get_data_gouv_fr():
     '''
     # patch 29/07/2020 : SSL error patch
     req = requests.get(URL_CSV_GOUV_FR).content
-    df_gouv_fr_raw = pd.read_csv(io.StringIO(req.decode('utf-8')), sep=";", 
-        low_memory=False) # patch dtype 2020-09-08
+    df_gouv_fr_raw = pd.read_csv(
+        io.StringIO(req.decode('utf-8')), 
+        sep=";",
+        low_memory=False
+    ) # patch dtype 2020-09-08
 
     # past treat data upper cases -> lower cases
     if "t" not in df_gouv_fr_raw.columns:
@@ -70,11 +73,16 @@ def get_data_gouv_fr():
     # patch : clear data in double !!!
     df_gouv_fr_raw = df_gouv_fr_raw[df_gouv_fr_raw["cl_age90"] != 0]
 
+    # patch str -> double (after update data link on 18/05/2022)
+    # "00,0" -> 0.0
+    df_gouv_fr_raw["t"] = df_gouv_fr_raw["t"].str.replace(",",".").astype(np.float64)
+    df_gouv_fr_raw["p"] = df_gouv_fr_raw["p"].str.replace(",",".").astype(np.float64)
+    # save to csv
     df_gouv_fr_raw.to_csv(PATH_DF_GOUV_FR_RAW, index=False)
 
     return df_gouv_fr_raw
 
-def apply_conv_age(str):
+def apply_conv_age(str_in):
     ''' Convert age classes to mean age
     '''
     #TODO : add precision with age of total pop"
@@ -83,7 +91,7 @@ def apply_conv_age(str):
                 "C": (45+64)/2,
                 "D": (65+74)/2,
                 "E": (75+100)/2}
-    return dict_age[str]
+    return dict_age[str_in]
     
 def get_old_data_gouv_fr():
     '''

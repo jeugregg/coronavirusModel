@@ -1,4 +1,4 @@
-FROM python:3.7-slim
+FROM python:3.8-slim
 WORKDIR /app
 COPY requirements_light.txt /app/
 COPY app.py /app/
@@ -26,6 +26,7 @@ COPY df_plot_pred_kr.csv /app/
 COPY df_plot_pred_all_kr.csv /app/
 COPY my_helpers/data_plots_kr.py /app/my_helpers/
 COPY my_helpers/model_kr.py /app/my_helpers/
+RUN /usr/local/bin/python -m pip install --upgrade pip
 RUN pip install -r requirements_light.txt
 EXPOSE 80
 CMD ["python", "app.py"]

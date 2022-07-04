@@ -164,7 +164,9 @@ def update_append(df1, df2):
         
     if index_append != []:
         print("appending...")
-        df1 = df1.append(df2.loc[index_append], verify_integrity=True)
+        #df1 = df1.append(df2.loc[index_append], verify_integrity=True)
+        df1 = pd.concat([df1, df2.loc[index_append]], verify_integrity=True)
+
     
     return df1
 
@@ -235,7 +237,14 @@ def convert_xml_area_kr(response_body):
         # add to dataFrame
         ser_curr = pd.Series({"date": str_date, 
                        DICT_AREA[gubunEn.text]:  int(incDec.text)})
-        df_area_kr = df_area_kr.append(ser_curr, ignore_index=True)
+
+        #df_area_kr = df_area_kr.append(ser_curr, ignore_index=True)
+        df_area_kr =  pd.concat(
+            [df_area_kr, pd.DataFrame(ser_curr.to_dict(), index=[0])],
+            axis=0,
+            ignore_index=True
+        )
+
 
     # clean one row per date 
     df_area_kr = df_area_kr.groupby("date").max()
@@ -286,7 +295,12 @@ def convert_xml_to_df_feat_kr(response_body):
                        nb_tests=int(accExamCompCnt_val),
                        nb_deaths=int(deathCnt_val)))
 
-        df_feat_kr_tmp = df_feat_kr_tmp.append(ser_curr, ignore_index=True)
+        #df_feat_kr_tmp = df_feat_kr_tmp.append(ser_curr, ignore_index=True)
+        df_feat_kr_tmp =  pd.concat(
+            [df_feat_kr_tmp, pd.DataFrame(ser_curr.to_dict(), index=[0])],
+            axis=0,
+            ignore_index=True
+        )
 
     # clean one row per date 
     df_feat_kr_tmp = df_feat_kr_tmp.groupby("date").max()
@@ -326,7 +340,13 @@ def convert_xml_age_kr(response_body):
         # add to dataFrame
         ser_curr = pd.Series({"date": str_date, 
                        f"nbC_{age_cat}":  int(confCase.text)})
-        df_age_kr = df_age_kr.append(ser_curr, ignore_index=True)
+        #df_age_kr = df_age_kr.append(ser_curr, ignore_index=True)
+        df_age_kr =  pd.concat(
+            [df_age_kr, pd.DataFrame(ser_curr.to_dict(), index=[0])],
+            axis=0,
+            ignore_index=True
+        )
+        
         
     # clean dates and interpolate if NaN :
     df_age_kr = df_age_kr.groupby("date")[LIST_NBC].sum()
@@ -348,6 +368,8 @@ def get_first_day_extrap_kr(df_feat_kr_tmp):
     str_date_extrap = None
 
     if "extrap" in df_feat_kr_tmp.columns:
+        # patch Nan values into extrap field? => False
+        df_feat_kr_tmp.loc[df_feat_kr_tmp["extrap"].isna(), "extrap"] = False
         df_extrap = df_feat_kr_tmp[df_feat_kr_tmp["extrap"]]
         if df_extrap.shape[0] > 0:
             str_date_extrap = df_extrap["date"].min()
@@ -440,8 +462,14 @@ def get_update_df_feat_kr(date_now=None, force_update=False):
             # add meteo
             date_req_start_meteo = max(date_req_start, DATE_FIRST_FEAT_OK_KR)
             date_req_start_meteo = max(date_req_start_meteo, date_req_start_age)
-            df_meteo = connect_api_meteo(date_req_start_meteo, 
-                                        date_req_end)
+            try:
+                df_meteo = connect_api_meteo(
+                    date_req_start_meteo,
+                    date_req_end
+                )
+            except:
+                # if limit free tier for visualcrossing meteo KR => no results
+                return None
             # save meteo
             df_meteo.to_csv(PATH_DF_METEO_KR, index=False)
             df_feat_kr_tmp = df_feat_kr_tmp.join(df_meteo)
@@ -456,7 +484,7 @@ def get_update_df_feat_kr(date_now=None, force_update=False):
         df_age_kr = convert_xml_age_kr(response_body)
         if df_age_kr is not None:
             if (df_feat_kr_tmp is None):
-                # if update for age but not for cases, have to load old df_feat 
+                # if update for age but not for cases, have to load old df_feat
                 df_feat_kr = load_df_feat_kr()
                 df_feat_kr_tmp = df_feat_kr.loc[df_age_kr.index]
             else:
