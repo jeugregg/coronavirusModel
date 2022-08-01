@@ -9,16 +9,16 @@ France with last 14 days data available.
 Run this app with `python app.py` and
 visit http://0.0.0.0/ in your web browser.
 '''
-# IMPORT 
+# IMPORT
 
-# import bluit-in 
+# import bluit-in
 #import logging
 import datetime
 import os
 import sys
 import traceback
 
-# import third party 
+# import third party
 
 import dash
 #import dash_core_components as dcc
@@ -33,7 +33,7 @@ import pandas as pd
 #from aws_logging_handlers.S3 import S3Handler
 # import project modules
 import settings
-from my_helpers.dates import *
+#from my_helpers.dates import *
 from my_helpers.data_plots import prepare_data_input
 from my_helpers.data_plots import prepare_plot_data_pos
 from my_helpers.data_plots import check_update
@@ -261,10 +261,10 @@ def startup_layout(force_update=None, message=""):
 
         display_msg("STARTUP END.")
         #logger.info("STARTUP END.")
-    except Exception as e:
+    except Exception as err:
         #logger.error("ERROR STARTUP: " + str(e))
-        traceback.print_tb(e.__traceback__)
-        raise(e)
+        traceback.print_tb(err.__traceback__)
+        raise(err)
     
 
     return html.Div(children=[
