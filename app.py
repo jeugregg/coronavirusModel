@@ -31,7 +31,7 @@ from dash.dependencies import State
 from dash.exceptions import PreventUpdate
 import pandas as pd
 #from aws_logging_handlers.S3 import S3Handler
-# import project modules 
+# import project modules
 import settings
 from my_helpers.dates import *
 from my_helpers.data_plots import prepare_data_input
@@ -203,7 +203,11 @@ server = app.server
                     n_clicks=0,
                 ),
 '''
+
 def create_error_msg(e):
+    """
+    Create an HTML error message
+    """
     return html.Div([
                 dcc.Textarea(
                     id='textarea-logs',
@@ -764,7 +768,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
             # prepare plot data for MAPS
             df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, _ = \
                 prepare_plot_data_map(False)
-            fig_out = create_fig_rt_dep(dep_curr, df_code_dep, 
+            fig_out = create_fig_rt_dep(dep_curr, df_code_dep,
                     pt_fr_test_last, df_dep_r0)
     elif (graph_type == 1):
         if (graph_type_old != 1):
@@ -774,7 +778,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
             print("PreventUpdate.")
             return dash.no_update, dash.no_update, graph_type, id_button, \
                 mode_country, dep_curr
-    # user in mode Confirmed, only dept. available 
+    # user in mode Confirmed, only dept. available
     else:
         # if user in mode "Confirmed"
         # 
@@ -784,7 +788,7 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
                 prepare_plot_data_map(False)
             df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
             df_pos_fr.index = df_pos_fr["date"]
-            fig_out = create_fig_pos_dep(dep_curr, df_code_dep, 
+            fig_out = create_fig_pos_dep(dep_curr, df_code_dep,
                         df_dep_r0, df_pos_fr, df_dep_sum)
         else:
             print("PreventUpdate.")
