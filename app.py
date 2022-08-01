@@ -380,7 +380,7 @@ def startup_layout(force_update=None, message=""):
             children=0),
         html.Div(id='dep', style={'display': 'none'},
             children=""),
-        html.Div(id='info', 
+        html.Div(id='info',
             children=dcc.Markdown(children=markdown_info)),
         create_error_msg(message),
         ])
@@ -474,24 +474,30 @@ def update_tabs(value):
             
 
 # update map / curve in KR : actions on buttons or dropdown
-@app.callback([Output('loading-graph-map-kr', 'children'),
-    Output('covid-rt-map-kr', 'figure'),
-    Output('covid-rt-dep-graph-kr', 'figure'),
-    Output('graph_type_kr', 'children'),
-    Output('loading-output-kr', 'children'),
-    Output('covid-pos-graph-kr', 'figure')],
-    [Input('btn-conf', 'n_clicks'),
-    Input('country-dropdown', 'value'),
-    Input('covid-rt-map-kr', 'clickData'),
-    Input("btn-kr",'n_clicks'),
-    Input("btn-test",'n_clicks'),
-    Input("btn-rt",'n_clicks'), 
-    Input('update-data', 'n_clicks')],
-    [State("graph_type_kr", "children")],
-    prevent_initial_call=True)
+@app.callback(
+        [
+            Output('loading-graph-map-kr', 'children'),
+            Output('covid-rt-map-kr', 'figure'),
+            Output('covid-rt-dep-graph-kr', 'figure'),
+            Output('graph_type_kr', 'children'),
+            Output('loading-output-kr', 'children'),
+            Output('covid-pos-graph-kr', 'figure'),
+            Output("textarea-logs", "value"),
+        ],
+        [
+            Input('btn-conf', 'n_clicks'),
+            Input('country-dropdown', 'value'),
+            Input('covid-rt-map-kr', 'clickData'),
+            Input("btn-kr",'n_clicks'),
+            Input("btn-test",'n_clicks'),
+            Input("btn-rt",'n_clicks'), 
+            Input('update-data', 'n_clicks')
+        ],
+        [State("graph_type_kr", "children")],
+        prevent_initial_call=True
+    )
 def update_map_kr_callback(n_clicks, dropdown_value, clickData, 
     n_clicks_country, n_clicks_test, n_clicks_rt, n_clicks_update, graph_type):
-
 
     if (dropdown_value != "South Korea"):
         raise PreventUpdate
@@ -609,23 +615,25 @@ def update_map_kr_callback(n_clicks, dropdown_value, clickData,
         fig_mdl = create_fig_pos(df_plot_kr, df_plot_pred_kr, 
             df_plot_pred_all_kr, str_date_mdl_kr, "South-Korea")
 
-        return "", fig_map, fig_curve, graph_type, str_date_kr, fig_mdl
+        return "", fig_map, fig_curve, graph_type, str_date_kr, fig_mdl, "UPDATE BUTTON KR OK"
     else:
         # no need to update graph pos mdl
-        return "", fig_map, fig_curve, graph_type, str_date_kr, dash.no_update
+        return "", fig_map, fig_curve, graph_type, str_date_kr, dash.no_update, "UPDATE BUTTON KR OK"
 
     
     
 
 # button update data
 @app.callback(
-    [Output('loading-output-1', 'children'), 
-    Output('covid-pos-graph', 'figure'),
-    Output('covid-rt-map', 'figure')],
+    [
+        Output('loading-output-1', 'children'),
+        Output('covid-pos-graph', 'figure'),
+        Output('covid-rt-map', 'figure'),
+    ],
     [Input('update-data', 'n_clicks')],
     [State('predicted-value', 'children'),
     State('predicted-value-all', 'children'),
-    State('country-dropdown', 'value')], 
+    State('country-dropdown', 'value')],
     prevent_initial_call=True)
 def update_fr(n_clicks, jsonified_pred, jsonified_pred_all, dropdown_value):
 
@@ -656,9 +664,11 @@ def update_fr(n_clicks, jsonified_pred, jsonified_pred_all, dropdown_value):
 
     display_msg("UPDATE DATA BUTTON END.")
     #logger.info("UPDATE DATA BUTTON END.")
-    return str_data_date, \
-        create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl), \
-        create_fig_map(pt_fr_test_last, dep_fr, str_date_last)
+    return (
+        str_data_date,
+        create_fig_pos(df_plot, df_plot_pred, df_plot_pred_all, str_date_mdl),
+        create_fig_map(pt_fr_test_last, dep_fr, str_date_last),
+    )
 
 
 
