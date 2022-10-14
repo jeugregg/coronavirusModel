@@ -25,7 +25,7 @@ from my_helpers.model import prepare_to_lambda_future
 from my_helpers.model import retrieve_from_lambda
 from my_helpers.model import prepare_to_lambda
 
-# DEFINITIONS 
+# DEFINITIONS
 NB_DAYS_CV = 14 # state duration in nb days for contagious confirmed people
 
 # plot

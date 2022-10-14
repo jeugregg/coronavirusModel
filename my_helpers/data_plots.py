@@ -54,13 +54,13 @@ from my_helpers.meteo import PATH_DF_METEO_FR
 # DATA from SPF
 def get_data_gouv_fr():
     '''
-    Get from Gouv  SFP page data cases in France 
+    Get from Gouv  SFP page data cases in France
     Clean & Save
     '''
     # patch 29/07/2020 : SSL error patch
     req = requests.get(URL_CSV_GOUV_FR).content
     df_gouv_fr_raw = pd.read_csv(
-        io.StringIO(req.decode('utf-8')), 
+        io.StringIO(req.decode('utf-8')),
         sep=";",
         low_memory=False
     ) # patch dtype 2020-09-08
@@ -227,10 +227,12 @@ def prepare_features(df_feat_fr, df_pos_fr, df_test_fr,
     df_feat_fr = df_feat_fr.join(ser_sum)
 
     # calculate Rt country : Rt
-    '''ser_rt = calc_rt(df_feat_fr["date"], df_feat_fr["pos"], NB_DAYS_CV)
+    '''
+    ser_rt = calc_rt(df_feat_fr["date"], df_feat_fr["pos"], NB_DAYS_CV)
     ser_rt.name = "Rt"
     df_feat_fr.drop(columns=["Rt"], inplace=True, errors="ignore")
-    df_feat_fr = df_feat_fr.join(ser_rt)'''
+    df_feat_fr = df_feat_fr.join(ser_rt)
+    '''
 
     ser_rt = calc_rt_from_sum(df_feat_fr["sum_cases"], NB_DAYS_CV)
     ser_rt.name = "Rt"

@@ -88,7 +88,7 @@ class TestConvertedModel:
 
     def test_predict(self):
         '''
-        Test if TFLITE model has same prediction than TF model  
+        Test if TFLITE model has same prediction than TF model
         '''
         list_x = create_list_past_hist(dataset)
         # Run the model with TensorFlow Lite

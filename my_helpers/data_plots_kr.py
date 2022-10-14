@@ -13,7 +13,7 @@ import requests
 
 # project libs
 import settings
-from my_helpers.dates import add_days
+from my_helpers.dates import add_days, days_between
 from my_helpers.dates import generate_list_dates
 from my_helpers.dates import create_date_range_lim
 from my_helpers.dates import check_cont_dates
@@ -356,8 +356,7 @@ def convert_xml_age_kr(response_body):
                                       limit_direction='forward', 
                                       axis=0)
     df_age_kr["nbC_age"] = df_age_kr.sum(axis=1)
-        
-        
+    
     return df_age_kr
 
 def get_first_day_extrap_kr(df_feat_kr_tmp):
@@ -378,7 +377,9 @@ def get_first_day_extrap_kr(df_feat_kr_tmp):
 
 # check update ?
 def check_update_df_feat_kr(date_now=None, force_update=False):
-    
+    '''
+    Check if update is possible for South Korea
+    '''
     if date_now is None:
         date_now = datetime.datetime.now().strftime("%Y-%m-%d")
     
@@ -393,8 +394,9 @@ def check_update_df_feat_kr(date_now=None, force_update=False):
         df_feat_kr = pd.read_csv(PATH_DF_FEAT_KR)
         # first date to download for cases
         date_first_extrap = get_first_day_extrap_kr(df_feat_kr)
-        if date_first_extrap is not None: 
+        if ((date_first_extrap is not None) and (days_between(date_first_extrap, date_now).days < 30)):
             # take first date of extrap to try to update it
+            # if not too far (< 30 days)
             date_req_start = date_first_extrap
         else:
             # normal mode : take last date +1
@@ -416,7 +418,7 @@ def check_update_df_feat_kr(date_now=None, force_update=False):
         flag_update = False
             
     if date_req_start_age > date_now:
-            flag_update_age = False
+        flag_update_age = False
     
     if not flag_update:
         date_req_start = None
@@ -568,7 +570,7 @@ def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
     '''
     Update Df Feat with new cases from Gouv KR
     force_update : to replace existing file
-    force_calc : to force redo final calculation 
+    force_calc : to force redo final calculation
     '''
     # get just new data 
     df_feat_kr_tmp = get_update_df_feat_kr(date_now, force_update)
@@ -605,7 +607,7 @@ def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
         df_feat_kr = df_feat_kr.join(ser_sum)
 
         # calculate sum-tests
-        ser_sum_t = calc_sum_mobile(df_feat_kr["date"], df_feat_kr["test"], 
+        ser_sum_t = calc_sum_mobile(df_feat_kr["date"], df_feat_kr["test"],
                                   NB_DAYS_CV)
         ser_sum_t.name = "sum_tests"
         df_feat_kr.drop(columns=["sum_tests"], inplace=True, errors="ignore")
@@ -620,19 +622,19 @@ def update_df_feat_kr(date_now=None, force_update=False, force_calc=False):
         # caculation sums by area
         for area_curr in LIST_AREA:
             # calculate sum-cases by area : col= sum_"area"
-            ser_sum = calc_sum_mobile(df_feat_kr["date"], 
-                                      df_feat_kr[area_curr], 
+            ser_sum = calc_sum_mobile(df_feat_kr["date"],
+                                      df_feat_kr[area_curr],
                                           NB_DAYS_CV)
             ser_sum.name = f"sum_{area_curr}"
-            df_feat_kr.drop(columns=[ser_sum.name], inplace=True, 
+            df_feat_kr.drop(columns=[ser_sum.name], inplace=True,
                             errors="ignore")
             df_feat_kr = df_feat_kr.join(ser_sum)
 
             # calculate Rt by area : col= Rt_"area"
-            ser_rt = calc_rt_from_sum(df_feat_kr[f"sum_{area_curr}"], 
+            ser_rt = calc_rt_from_sum(df_feat_kr[f"sum_{area_curr}"],
                                       NB_DAYS_CV)
             ser_rt.name = f"Rt_{area_curr}"
-            df_feat_kr.drop(columns=[ser_rt.name], inplace=True, 
+            df_feat_kr.drop(columns=[ser_rt.name], inplace=True,
                             errors="ignore")
             df_feat_kr = df_feat_kr.join(ser_rt)
 

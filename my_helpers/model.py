@@ -5,7 +5,7 @@
 # settings (special)
 import settings
 
-# import built-in 
+# import built-in
 import os
 import math
 import numpy as np
@@ -22,7 +22,7 @@ from my_helpers.dates import generate_list_dates
 from my_helpers.dates import create_date_ranges
 from my_helpers.utils import sum_mobile
 
-# DEFINITIONS 
+# DEFINITIONS
 NB_DAYS_CV = 14 # state duration in nb days for contagious confirmed people
 
 # plot
@@ -157,8 +157,7 @@ def multivariate_data(dataset, target, start_index, end_index, history_size,
 # FOR AWS Lambda predict
 def prepare_to_lambda(dataset):
     '''
-    Prepare data input model to be used by lambda: 
-    
+    Prepare data input model to be used by lambda:
     for prediction all past days
     '''
     list_list_x = []
@@ -210,10 +209,10 @@ def prepare_dataset(df_feat_fr):
     features = df_feat_fr.copy().filter(items=['T_min', 'T_max', 'H_min',
                                            'H_max', 'pos', 'test', 'day_num',
                                            'age_pos', 'age_test'])
-    # prepare dataset 
+    # prepare dataset
     dataset = features.values
-    data_mean = dataset[:TRAIN_SPLIT].mean(axis=0)
-    data_std = dataset[:TRAIN_SPLIT].std(axis=0)
+    data_mean = np.nanmean(dataset[:TRAIN_SPLIT], axis=0)
+    data_std = np.nanstd(dataset[:TRAIN_SPLIT], axis=0)
     dataset = (dataset-data_mean)/data_std
 
     return dataset, data_std, data_mean

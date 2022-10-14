@@ -116,7 +116,7 @@ But more the model learns from the different "waves", more the model is accurate
 - Tested / Confirmed cases FR: https://www.data.gouv.fr/fr/datasets/donnees-relatives-aux-resultats-des-tests-virologiques-covid-19
 - Météo France: https://public.opendatasoft.com/explore/dataset/donnees-synop-essentielles-omm
     
-'''  
+'''
 markdown_info_mdl_kr = '''
 ***Legend***    
 `Total`                 : Actual total number of confirmed cases in France for past days  
@@ -157,9 +157,9 @@ But more the model learns from the different "waves", more the model is accurate
 - Meteo South Korea (Seoul, Deagu, Busan): https://www.visualcrossing.com/weather-data
 - Geoson Map South Korea: https://github.com/southkorea/southkorea-maps 
   
-'''  
+'''
 
-markdown_info = '''  
+markdown_info = '''
 More info in my github below.  
     
 ***GitHub***: https://github.com/jeugregg/coronavirusModel
@@ -198,8 +198,8 @@ server = app.server
 #logger.error("test error message")
 '''
                 html.Button(
-                    'Force Update!', 
-                    id='force-update-button', 
+                    'Force Update!',
+                    id='force-update-button',
                     n_clicks=0,
                 ),
 '''
@@ -235,14 +235,14 @@ def startup_layout(force_update=None, message=""):
             flag_update = check_update()
             flag_update_kr = check_update_kr()
         
-        # prepare input data
+        # prepare input data FR
         df_feat_fr, str_date_mdl, str_data_date = prepare_data_input(flag_update)
         
-        # prepare plot data for positive cases
+        # prepare plot data for positive cases FR
         df_plot, df_plot_pred, df_plot_pred_all, str_date_last = \
             prepare_plot_data_pos(df_feat_fr, flag_update)
 
-        # prepare plot data for MAPS
+        # prepare plot data for MAPS FR
         df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum = \
             prepare_plot_data_map(flag_update)
         
@@ -266,6 +266,8 @@ def startup_layout(force_update=None, message=""):
         traceback.print_tb(err.__traceback__)
         raise(err)
     
+    message += f"\n UPDATE FR : {flag_update} / last:  {str_data_date}"
+    message += f"\n UPDATE KR : {flag_update_kr} / last:  {str_data_date_kr}"
 
     return html.Div(children=[
         dcc.Location(id='url', refresh=False),
@@ -391,9 +393,9 @@ def startup_layout(force_update=None, message=""):
 
 try:
     app.layout = startup_layout(
-            force_update=None,
-            message="App : OK",
-        )
+        force_update=None,
+        message="App : OK",
+    )
 except Exception as e1:
     try:
         app.layout = startup_layout(
@@ -408,6 +410,9 @@ except Exception as e1:
 @app.callback([Output("country-dropdown", "value")],
 [Input('url', 'pathname')])
 def location_url_callback(pathname):
+    '''
+    update country dropdown value from pathname
+    '''
     print('url pathname: ', pathname)
     if (pathname == "/South-Korea"):
         value = "South Korea"
@@ -431,47 +436,16 @@ def location_url_callback(pathname):
     [Input('country-dropdown', 'value')],
     prevent_initial_call=True)
 def update_tabs(value):
-    
+    '''
+    change page content when tabs user interaction
+    '''
     display_msg("update_tabs ...")
     #logger.info("update_tabs ...")
-    if (value == "South Korea"):
-        '''# load data kr
-        df_feat_kr = load_df_feat_kr()
-        # figure mdl
-        graph_mdl = [""]
-        # figure map
-        fig_map = create_fig_map_kr(df_feat_kr, LIST_SUM_GEOJSON, 
-            "<b>Confirmed</b> cases : Sum of last 14 days")
-
-
-        # figure graph
-        dep_curr = "South Korea"
-        ser_pos = df_feat_kr["pos"]
-        ser_sum_pos = df_feat_kr["sum_cases"]
-        rt_last = df_feat_kr["Rt"].values[-1]
-        fig_curve = figure_pos(ser_pos, ser_sum_pos, dep_curr, rt_last)
-        graph_curve = dcc.Graph(id='covid-rt-map-curve',
-                    figure=fig_curve)'''
-
-        
+    if value == "South Korea":
         return get_title(value), "app-hide", "graph-mdl", "app-hide", \
             "app-hide", "app-map", "app-graph-map", "app-hide", \
             "app-show-block", dcc.Markdown(children=markdown_info_mdl_kr)
     else:
-        '''# prepare input data
-        df_feat_fr, str_date_mdl, str_data_date = prepare_data_input(False)
-    
-        # prepare plot data for positive cases
-        df_plot, df_plot_pred, df_plot_pred_all, str_date_last = \
-            prepare_plot_data_pos(df_feat_fr, False)
-
-        # prepare plot data for MAPS
-        df_dep_r0, pt_fr_test_last, dep_fr, df_code_dep, df_dep_sum = \
-            prepare_plot_data_map(False)
-    
-        df_pos_fr = pd.read_csv(PATH_DF_POS_FR)
-        df_pos_fr.index = df_pos_fr["date"]'''
-
         return get_title(value), "graph-mdl", "app-hide", "app-map", \
             "app-graph-map", "app-hide", "app-hide", "app-show-block", \
             "app-hide", dcc.Markdown(children=markdown_info_mdl)
@@ -502,7 +476,9 @@ def update_tabs(value):
     )
 def update_map_kr_callback(n_clicks, dropdown_value, clickData, 
     n_clicks_country, n_clicks_test, n_clicks_rt, n_clicks_update, graph_type):
-
+    '''
+    update map for south korea
+    '''
     if (dropdown_value != "South Korea"):
         raise PreventUpdate
 
@@ -546,7 +522,7 @@ def update_map_kr_callback(n_clicks, dropdown_value, clickData,
     print(dep_curr)
 
     # figure curve confirmed
-    if (graph_type == 0): 
+    if (graph_type == 0):
 
         # figure map
         if (button_id != "covid-rt-map-kr"):
@@ -624,10 +600,7 @@ def update_map_kr_callback(n_clicks, dropdown_value, clickData,
         # no need to update graph pos mdl
         return "", fig_map, fig_curve, graph_type, str_date_kr, dash.no_update, "UPDATE BUTTON KR OK"
 
-    
-    
 
-# button update data
 @app.callback(
     [
         Output('loading-output-1', 'children'),
@@ -640,6 +613,9 @@ def update_map_kr_callback(n_clicks, dropdown_value, clickData,
     State('country-dropdown', 'value')],
     prevent_initial_call=True)
 def update_fr(n_clicks, jsonified_pred, jsonified_pred_all, dropdown_value):
+    '''
+    update all data and figures for France
+    '''
 
     display_msg("UPDATE DATA BUTTON ...")
     #logger.info("UPDATE DATA BUTTON ...")
@@ -675,8 +651,6 @@ def update_fr(n_clicks, jsonified_pred, jsonified_pred_all, dropdown_value):
     )
 
 
-
-
 # click on map
 @app.callback(
     [Output('loading-graph-map', 'children'),
@@ -701,8 +675,8 @@ def display_click_data(clickData, n_clicks, fig, graph_type_old, id_button_old,
     print("clickData: ", clickData)
     print("hoverData: ", hoverData)
     
-    # get context : 
-    # if "div-rt-map" => user clicked on buttons 
+    # get context :
+    # if "div-rt-map" => user clicked on buttons
     # if "covid-rt-map" => user clicked on data
     ctx = dash.callback_context
     if not ctx.triggered:
