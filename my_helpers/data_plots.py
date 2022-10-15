@@ -191,15 +191,17 @@ def precompute_data_pos_disk():
     precompute_data_pos(df_gouv_fr_raw)
 
 def precompute_old_data_pos_disk():
-    ''' Pre-compute old data from Sante Publique France from disk
+    ''' 
+    Pre-compute old data from Sante Publique France from disk
     '''
     df_gouv_fr_raw_old = load_old_data_gouv()
-    precompute_data_pos(df_gouv_fr_raw_old, nb_pos_start=0, 
+    precompute_data_pos(df_gouv_fr_raw_old, nb_pos_start=0,
         path_df_pos_fr=PATH_DF_POS_FR_OLD, path_df_test_fr=PATH_DF_TEST_FR_OLD)
 
-def prepare_features(df_feat_fr, df_pos_fr, df_test_fr, 
+def prepare_features(df_feat_fr, df_pos_fr, df_test_fr,
         path_df_feat_fr=PATH_DF_FEAT_FR):
-    '''Finalize preparation of model features df_feat_fr table 
+    '''
+    Finalize preparation of model features df_feat_fr table
     to input model.
     Result is saved only. no output.
     '''
@@ -208,7 +210,7 @@ def prepare_features(df_feat_fr, df_pos_fr, df_test_fr,
     # add age positive cases
     df_feat_fr["age_pos"] = df_pos_fr["age"].copy()
 
-    # add daily tested cases for all departements    
+    # add daily tested cases for all departements
     df_feat_fr["test"] = df_test_fr["daily"].copy()
     # add age tested cases
     df_feat_fr["age_test"] = df_test_fr["age"].copy()
@@ -227,13 +229,6 @@ def prepare_features(df_feat_fr, df_pos_fr, df_test_fr,
     df_feat_fr = df_feat_fr.join(ser_sum)
 
     # calculate Rt country : Rt
-    '''
-    ser_rt = calc_rt(df_feat_fr["date"], df_feat_fr["pos"], NB_DAYS_CV)
-    ser_rt.name = "Rt"
-    df_feat_fr.drop(columns=["Rt"], inplace=True, errors="ignore")
-    df_feat_fr = df_feat_fr.join(ser_rt)
-    '''
-
     ser_rt = calc_rt_from_sum(df_feat_fr["sum_cases"], NB_DAYS_CV)
     ser_rt.name = "Rt"
     df_feat_fr.drop(columns=["Rt"], inplace=True, errors="ignore")

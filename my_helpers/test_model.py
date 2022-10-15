@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 
-# import 
-
-# classical
+# import
 import math
-import numpy as np
-import pandas as pd
 import json
 import requests
 
 # import third party
+import numpy as np
+import pandas as pd
 import pytest
 import tensorflow as tf
 from sklearn.metrics import mean_absolute_error

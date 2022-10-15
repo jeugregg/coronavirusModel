@@ -266,9 +266,10 @@ def startup_layout(force_update=None, message=""):
         traceback.print_tb(err.__traceback__)
         raise(err)
     
-    message += f"\n UPDATE FR : {flag_update} / last:  {str_data_date}"
-    message += f"\n UPDATE KR : {flag_update_kr} / last:  {str_data_date_kr}"
-
+    message += f"\n UPDATE FR: {flag_update} / last:  {str_data_date}"
+    message += f"\nFeatures FR:\n{df_feat_fr.iloc[-1].values}"
+    message += f"\n\n UPDATE KR: {flag_update_kr} / last:  {str_data_date_kr}"
+    message += f"\nFeatures KR:\n{df_feat_kr.iloc[-1].values}"
     return html.Div(children=[
         dcc.Location(id='url', refresh=False),
         html.H1(children=get_title(str_country), id="app-title"),
@@ -655,12 +656,12 @@ def update_fr(n_clicks, jsonified_pred, jsonified_pred_all, dropdown_value):
 @app.callback(
     [Output('loading-graph-map', 'children'),
     Output('covid-rt-dep-graph', 'figure'),
-    Output('graph_type', 'children'), 
+    Output('graph_type', 'children'),
     Output('id_button', 'children'),
     Output('mode_country', 'children'),
     Output('dep', 'children')],
-    [Input('covid-rt-map', 'clickData'), 
-    Input('div-rt-map', 'n_clicks')], 
+    [Input('covid-rt-map', 'clickData'),
+    Input('div-rt-map', 'n_clicks')],
     [dash.dependencies.State('covid-rt-map', 'figure'),
     dash.dependencies.State('graph_type', 'children'),
     dash.dependencies.State('id_button', 'children'),
