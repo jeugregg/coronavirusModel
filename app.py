@@ -593,13 +593,17 @@ def update_map_kr_callback(n_clicks, dropdown_value, clickData,
         df_plot_kr, df_plot_pred_kr, df_plot_pred_all_kr, str_date_last_kr = \
             prepare_plot_data_pos_kr(df_feat_kr, flag_update=True)
         # update graph pos mdl
-        fig_mdl = create_fig_pos(df_plot_kr, df_plot_pred_kr, 
+        fig_mdl = create_fig_pos(df_plot_kr, df_plot_pred_kr,
             df_plot_pred_all_kr, str_date_mdl_kr, "South-Korea")
 
-        return "", fig_map, fig_curve, graph_type, str_date_kr, fig_mdl, "UPDATE BUTTON KR OK"
+        message = "UPDATE BUTTON KR OK"
+        message += f"\n last date: {str_data_date_kr}"
+        message += f"\nFeatures KR:\n{df_feat_kr.iloc[-1].values}"
+
+        return "", fig_map, fig_curve, graph_type, str_date_kr, fig_mdl, message
     else:
         # no need to update graph pos mdl
-        return "", fig_map, fig_curve, graph_type, str_date_kr, dash.no_update, "UPDATE BUTTON KR OK"
+        return "", fig_map, fig_curve, graph_type, str_date_kr, dash.no_update, "App KR OK"
 
 
 @app.callback(
